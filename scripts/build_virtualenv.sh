@@ -15,6 +15,7 @@
 # %*% that due to SystemTap needing root permissions, the first run of the script will fail giving instructions to the
 # %*% user on how to manually run a couple of commands as root to give the necessary privileges to its binaries.
 #
+# Apparently the script won't work for gcc/4.4.6 and python/2.6.6 (default module in DAS4)
 #
 
 # Change Log:
@@ -503,10 +504,19 @@ else
     exit 100
 fi
 
+# For some reason the pip scripts get a python 2.6 shebang, fix it. Redo-it
+sed -i 's~#!/usr/bin/env python2.6~#!/usr/bin/env python2~' $VENV/bin/pip*
+
+#save storage by deleting source archive
+rm $VENV/src/*.tar.*
+
+#deleting stuff that we may not need
+rm -rf $VENV/src/gmp-*/ $VENV/src/libevent-*/ $VENV/src/libffi-*/ $VENV/src/libsodium-*/ $VENV/src/M2Crypto-*/ openssl-*/ wxPython-*/
+
 echo "Done, you can use this virtualenv with:
 	source venv/bin/activate
 And exit from it with:
-	activate
+	deactivate
 Enjoy."
 
 #
