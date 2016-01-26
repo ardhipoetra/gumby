@@ -1,0 +1,18 @@
+Code used
+=========
+
+https://github.com/mihaic/tribler/tree/channel_boosting_new_exp
+https://github.com/mihaic/gumby/tree/channel_boosting_new
+
+
+Processing logs
+===============
+
+tar -xvf data.tar.xz
+./log2rdata.sh
+
+
+Plotting
+========
+
+./run.sh
