@@ -40,7 +40,7 @@
 #
 
 # Increase this every time the file gets modified.
-SCRIPT_VERSION=18
+SCRIPT_VERSION=19
 
 # Code:
 set -e
@@ -318,7 +318,7 @@ fi
 # wxpython
 pushd $VENV/src
 if [ ! -e wxPython-*.tar.bz2 ]; then
-    wget http://garr.dl.sourceforge.net/project/wxpython/wxPython/2.8.12.1/wxPython-src-2.8.12.1.tar.bz2
+    wget http://downloads.sourceforge.net/project/wxpython/wxPython/2.8.12.1/wxPython-src-2.8.12.1.tar.bz2
 fi
 if [ ! -d wxPython*/ ]; then
     tar xavf wxPython-*.tar.bz2
@@ -474,8 +474,10 @@ pip install netifaces --allow-external netifaces --allow-unverified netifaces
 CFLAGS="$CFLAGS -I$VENV/include" LDFLAGS="$LDFLAGS -L$VENV/lib" pip install -r ~/requirements.txt
 
 # meliae is not on the official repos
-pip install --allow-unverified pyrex --allow-external  pyrex pyrex
 pip install --allow-unverified meliae --allow-external meliae meliae
+
+#can't find pyrex nowadays, do we really need it?
+# pip install --allow-unverified pyrex --allow-external  pyrex pyrex
 
 #$VENV/bin/python $VENV/bin/pip install -r ~/requirements.txt\
 rm ~/requirements.txt
