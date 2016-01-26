@@ -39,6 +39,7 @@
 
 
 set -e
+shopt -s nocasematch
 
 # @CONF_OPTION NOSE_RUN_DIR: Specify from which directory nose should run (default is $PWD)
 if [ ! -z "$NOSE_RUN_DIR" ]; then
@@ -46,14 +47,14 @@ if [ ! -z "$NOSE_RUN_DIR" ]; then
 fi
 
 # @CONF_OPTION RUN_PYLINT: Run pylint in parallel with the unit tests (default is TRUE)
-if [ "${RUN_PYLINT,,}" != "false" ]; then
+if [ "${RUN_PYLINT}" != "false" ]; then
     ionice -c 3 nice pylint --ignore=.git --ignore=dispersy --ignore=pymdht --ignore=libnacl --output-format=parseable --reports=y  Tribler \
          > $OUTPUT_DIR/pylint.out 2> $OUTPUT_DIR/pylint.log &
     PYLINT_PID=$!
 fi
 
 # @CONF_OPTION RUN_SLOCCOUNT: Run sloccount in parallel with the unit tests (default is TRUE)
-if [ "${RUN_SLOCCOUNT,,}" != "false" ]; then
+if [ "${RUN_SLOCCOUNT}" != "false" ]; then
 
     mkdir -p $OUTPUT_DIR/slocdata
 
@@ -64,6 +65,7 @@ if [ "${RUN_SLOCCOUNT,,}" != "false" ]; then
     SLOCCOUNT_PID=$!
 fi
 
+shopt -u nocasematch
 
 echo Nose will run from $PWD
 
@@ -94,8 +96,16 @@ else
         COUNT=0
         OLD_IFS=$IFS
         IFS=$'\n'
+
+        SORT_CMD="sort"
+        if [ $(uname) == "Darwin" ]; then
+            SORT_CMD="gsort"
+        fi
+
+        LINES=$(find ${NOSE_TESTS_TO_RUN} -type f -iname "test_*.py" | ${SORT_CMD} -R --random-source=/dev/zero | xargs -n${BUCKET_SIZE})
+
         # This weird sort call sorts randomly with a fixed salt so the test sorting is always the same, but not alphabetical
-        for LINE in $(find ${NOSE_TESTS_TO_RUN} -type f -iname "test_*.py" | sort -R --random-source=/dev/zero | xargs -r -n${BUCKET_SIZE}); do
+        for LINE in $LINES; do
             echo -n "COVERAGE_FILE=.coverage.$COUNT wrap_in_vnc.sh 'nosetests -v --with-coverage  " >> $NOSECMD_FILE
             echo -n "--xunit-file=$OUTPUT_DIR/${COUNT}_nosetests.xml.part " >> $NOSECMD_FILE
             echo -n "$NOSEARGS_COMMON '" >> $NOSECMD_FILE
