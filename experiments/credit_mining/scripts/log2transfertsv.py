@@ -24,11 +24,11 @@ def main():
             except ValueError:
                 continue
             if message.startswith("Status for"):
-                p1, p2 = message.split(" : ")
-                ihash = p1[-40:]
-                new_download, new_upload = p2.split()
-                new_download = int(new_download)
-                new_upload = int(new_upload)
+                p = message.split(" : ")
+                ihash = p[0][-40:]
+                q = p[1].split()
+                new_download = int(q[0])
+                new_upload = int(q[1])
                 transfer_history = transfers[ihash].transfer_history
                 last_transfer = transfers[ihash].last_transfer
                 if (new_download < last_transfer.download or
