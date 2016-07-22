@@ -6,20 +6,22 @@ if [ -z "$OUTPUT_DIR" ]; then
 fi
 
 if [ -z "$EXPERIMENT_DIR" ]; then
-    echo 'ERROR: EXPERIMENT_DIR variable not found, are you running this script from within gumby?'
+    echo 'ERROR: $EXPERIMENT_DIR variable not found, are you running this script from within gumby?'
     exit 1
 fi
 
-cd $OUTPUT_DIR
+if [ -z "$PROJECT_DIR" ]; then
+    echo 'ERROR: $PROJECT_DIR variable not found, are you running this script from within gumby?'
+    exit 1
+fi
 
-echo "Running post credit mining..."
+cd $PROJECT_DIR
+
+echo "Running post credit mining for mihai's code..."
 
 # find .log file and put them to output/data
-mkdir -p data
-for log in $(grep -H -r "Added source" | grep -v ^Binary | cut -d: -f1)
-do
-    cp $log data
-done
+mkdir -p "$OUTPUT_DIR/data"
+cp tribler/boosting.log "$OUTPUT_DIR/data"
 
 R --no-save --quiet < "$EXPERIMENT_DIR"/scripts/install.r
 
