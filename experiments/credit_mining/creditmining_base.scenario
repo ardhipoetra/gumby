@@ -6,4 +6,4 @@
 @0:12 start_boosting {1}
 @0:30 add_source http://bt.etree.org/rss/bt_etree_org.rdf {1}
 @0:33 reset_dispersy_statistics
-@0:600 stop
+@0:86400 stop

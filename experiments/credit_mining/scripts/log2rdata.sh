@@ -26,7 +26,7 @@ do
 
 	"$SCRIPT_DIR"/plot-transfers-facet.R --hours="50" --output="$log.pdf" --label=1 "$DATA_DIR/$tsv.RData"
 
-	convert -density 300 -depth 8 -quality 85 "$log.pdf" "$log.png"
+	convert -resize 25% -density 300 -depth 8 -quality 85 "$log.pdf" "$log.png"
 done
 
 echo "Finish plotting"
