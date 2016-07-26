@@ -4,9 +4,11 @@
 # © 2014 Mihai Capotă
 """Extract transfer information from log file into tsv file"""
 
+from __future__ import print_function
 import argparse
 
 from collections import defaultdict, namedtuple
+
 
 def main():
     argparser = argparse.ArgumentParser()
