@@ -16,9 +16,12 @@ echo "Running post credit mining..."
 
 # find .log file and put them to output/data
 mkdir -p data
+
 for log in $(grep -H -r "Added source" | grep -v ^Binary | cut -d: -f1)
 do
-    cp $log data
+    thedir=`dirname $log`
+    log_=${log##*/}
+    cp $log "data/${log_%.*}_`echo ${thedir} | tr /. _`.log"
 done
 
 R --no-save --quiet < "$EXPERIMENT_DIR"/scripts/install.r
