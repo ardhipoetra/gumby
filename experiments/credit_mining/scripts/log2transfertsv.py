@@ -1,10 +1,9 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 # coding=utf-8
 # pylint: disable=invalid-name,too-many-locals
 # © 2014 Mihai Capotă
 """Extract transfer information from log file into tsv file"""
 
-from __future__ import print_function
 import argparse
 
 from collections import defaultdict, namedtuple
@@ -46,11 +45,10 @@ def main():
                 transfers[ihash] = TransferStatus(transfer_history,
                                                   Transfer(new_download,
                                                            new_upload, ts))
-    print("ihash", "download", "upload", "ts", sep="\t")
+    print "ihash\tdownload\tupload\tts"
     for ihash, transfer_status in transfers.items():
         for transfer in transfer_status.transfer_history[1:]:
-            print(ihash, transfer.download, transfer.upload, transfer.ts,
-                  sep="\t")
+            print "%s\t%s\t%s\t%s\t" %(ihash, transfer.download, transfer.upload, transfer.ts)
 
 if __name__ == "__main__":
     main()
