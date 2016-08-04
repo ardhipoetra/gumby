@@ -1,4 +1,4 @@
-#!/usr/bin/env Rscript
+#!/usr/bin/Rscript
 # © 2014 Mihai Capotă
 
 # Plot transfer evolution recorded in TSV file and store processed RData
@@ -13,15 +13,6 @@ library(zoo)
 
 options(digits.secs = 3)
 
-parser <- ArgumentParser(description="Plot Tribler BoostingManager transfers")
-parser$add_argument("transfers", help="log used as input")
-parser$add_argument("output", help="name used as output", nargs="?",
-		    default="transfers.pdf")
-parser$add_argument("--plotless", help="do not produce plots, only RData",
-		    action="store_true")
-args <- parser$parse_args()
-
-transfers <- read.table(args$transfers, header=T)
 transfers$ts <- round_date(as.POSIXct(transfers$ts, "%Y%m%dT%H%M%OSZ",
 				      tz="UTC"), "minute")
 

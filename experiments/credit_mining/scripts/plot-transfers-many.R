@@ -1,4 +1,4 @@
-#!/usr/bin/Rscript
+#!/usr/bin/env Rscript
 # © 2014 Mihai Capotă
 
 # Plot many pre-processed transfer evolutions recorded in TSV files
