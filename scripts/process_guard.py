@@ -169,6 +169,7 @@ class ResourceMonitor(object):
             stdout = stderr = None
 
         print >> stdout, "Starting #%05d: %s" % (self.cmd_counter, cmd)
+
         if stdout:
             stdout.flush()
         p = PGPopen(cmd, shell=True, stdout=stdout, stderr=stderr, close_fds=True, env=None, preexec_fn=setsid)
@@ -282,6 +283,13 @@ class ProcessMonitor(object):
             r_timestamp = ceil(timestamp / self._interval) * self._interval  # rounding timestamp to nearest interval to try to overlap multiple nodes
 
             self._rm.prune_pid_list()
+
+            # prevent segmentation fault hang in gumby
+            if self._rm.get_failed_commands():
+                for p in self._rm.get_failed_commands().values():
+                    if p[1] == 139:
+                        self.stop()
+
             # Look for new subprocesses only once a second and only during the first "check_for_new_processes" seconds
             if (timestamp < time_start + check_for_new_processes) and (timestamp - last_subprocess_update >= 1):
                 self._rm.update_pid_tree()
