@@ -25,7 +25,7 @@ tracker.decode_request = _decode_request
 
 print >> stdout, "Run tracker"
 
-track = Tracker(port=6969)
+track = Tracker(port=9197, log=None)
 track.run()
 
 reactor.exitCode = 0
