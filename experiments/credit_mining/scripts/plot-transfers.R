@@ -25,7 +25,7 @@ transfers <- read.table(args$transfers, header=T)
 transfers$ts <- round_date(as.POSIXct(transfers$ts, "%Y%m%dT%H%M%OSZ",
 				      tz="UTC"), "minute")
 
-downloads <- recast(transfers, ts ~ ihash, measure.var=c("download"))
+downloads <- recast(transfers, ts ~ ihash, measure.var=c("download"), fun.aggregate=mean)
 downloads_melt_na <- melt(downloads, id.var="ts", variable.name="ihash", value.name="download")
 downloads <- zoo(downloads, order.by=downloads$ts)
 downloads <- na.locf(downloads)
@@ -36,7 +36,7 @@ moltend <- melt(downloads, id.var="ts")
 moltend$value <- as.numeric(moltend$value)
 sumd <- moltend %>% group_by(ts) %>% summarize(sumd=sum(value, na.rm=T))
 
-uploads <- recast(transfers, ts ~ ihash, measure.var=c("upload"))
+uploads <- recast(transfers, ts ~ ihash, measure.var=c("upload"), fun.aggregate=mean)
 uploads_melt_na <- melt(uploads, id.var="ts", variable.name="ihash", value.name="upload")
 uploads <- zoo(uploads, order.by=uploads$ts)
 uploads <- na.locf(uploads)
