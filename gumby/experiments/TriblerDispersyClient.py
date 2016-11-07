@@ -44,7 +44,7 @@ class TriblerDispersyExperimentScriptClient(DispersyExperimentScriptClient):
 
         def _do_start():
             logging.error("Starting Tribler Session")
-            self.session_config = self.setup_session_config()
+
             self.session = Session(scfg=self.session_config)
 
             logging.error("Upgrader")
@@ -60,12 +60,16 @@ class TriblerDispersyExperimentScriptClient(DispersyExperimentScriptClient):
             logging.error("Tribler Session started")
             self.annotate("Tribler Session started")
 
-            self._dispersy = self.session.lm.dispersy
+            if self.session.get_dispersy():
+                self._dispersy = self.session.lm.dispersy
 
             return self.session
 
+        self.session_config = self.setup_session_config()
         self.session_deferred = threads.deferToThread(_do_start)
-        self.session_deferred.addCallback(self.__start_dispersy)
+
+        if self.session_config.get_dispersy():
+            self.session_deferred.addCallback(self.__start_dispersy)
 
     def __start_dispersy(self, session):
         self.original_on_incoming_packets = self._dispersy.on_incoming_packets
