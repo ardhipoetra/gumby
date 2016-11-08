@@ -1,7 +1,7 @@
 #!/usr/bin/env python2
 import logging
 import os
-from binascii import hexlify
+from binascii import hexlify, unhexlify
 from os import path as path
 from sys import path as pythonpath
 from time import time
@@ -22,6 +22,7 @@ from Tribler.Core.TorrentDef import TorrentDef
 from Tribler.community.channel.community import ChannelCommunity
 from Tribler.community.channel.preview import PreviewChannelCommunity
 from Tribler.Policies.credit_mining_util import TorrentManagerCM
+from Tribler.Core.RemoteTorrentHandler import RemoteTorrentHandler
 
 class ChannelDownloadClient(TriblerDispersyExperimentScriptClient):
 
@@ -41,18 +42,30 @@ class ChannelDownloadClient(TriblerDispersyExperimentScriptClient):
         self.upload_dir_path = None
 
         self.torrent_mgr = None
+        self.downloaded_torrent = {}
 
     def start_session(self):
         super(ChannelDownloadClient, self).start_session()
         self.session_deferred.addCallback(self.__config_dispersy)
+        self.session_deferred.addErrback(self._logger.error)
 
     def __config_dispersy(self, session):
         self.session.lm.dispersy = self._dispersy
-        self.session.lm.init()
+        # self.session.lm.init()
         self.session.get_dispersy = True
 
         self._dispersy.define_auto_load(ChannelCommunity, self._my_member, (), {"tribler_session": self.session})
         self._dispersy.define_auto_load(PreviewChannelCommunity, self._my_member, (), {"tribler_session": self.session})
+
+        from Tribler.Core.TFTP.handler import TftpHandler
+
+        self.session.lm.tftp_handler = TftpHandler(self.session, self.endpoint,
+                                                   "fffffffd".decode('hex'), block_size=1024)
+        self.session.lm.tftp_handler.initialize()
+
+        self.session.lm.rtorrent_handler = RemoteTorrentHandler(self.session)
+        self.session.get_dispersy_instance = lambda: self.session.lm.dispersy
+        self.session.lm.rtorrent_handler.initialize()
 
         self._logger.error("Dispersy configured")
 
@@ -174,7 +187,7 @@ class ChannelDownloadClient(TriblerDispersyExperimentScriptClient):
             download.set_state_callback(seeder_callback, delay=1)
 
     def _create_test_torrent(self, filename='', size=0):
-        filepath = path.join(self.upload_dir_path, "%s-%s.data" % (self.scenario_file, filename))
+        filepath = path.join(self.upload_dir_path, "%s.data" % filename)
 
         tdef = TorrentDef()
         with open(filepath, 'wb') as fp:
@@ -198,25 +211,73 @@ class ChannelDownloadClient(TriblerDispersyExperimentScriptClient):
             self.dl_lc = lc = LoopingCall(self.start_download, name)
             lc.start(1.0, now=False)
 
-        if self.joined_community:
+            self.downloaded_torrent[name] = False
+        elif self.downloaded_torrent[name]:
             self.dl_lc.stop()
             self.dl_lc = None
-        else:
+
+            tdef = TorrentDef.load_from_memory(self.session.get_collected_torrent(
+                                               unhexlify(self.downloaded_torrent[name])))
+
+            self._logger.error("%s.torrent %s (%s) found, prepare to download..",
+                               name, self.downloaded_torrent[name], tdef)
+
+            dscfg = DefaultDownloadStartupConfig.getInstance().copy()
+            dscfg.set_dest_dir(path.join(self.session.get_state_dir(), "download"))
+
+            def cb(ds):
+                from Tribler.Core.simpledefs import dlstatus_strings
+                logging.error('Download infohash=%s, down=%d kB/s, up=%d kB/s, progress=%s, status=%s, peers=%s' %
+                              (tdef.get_infohash().encode('hex'),
+                               ds.get_current_speed('down')/1000,
+                               ds.get_current_speed('up')/1000,
+                               ds.get_progress(),
+                               dlstatus_strings[ds.get_status()],
+                               sum(ds.get_num_seeds_peers())))
+
+                #vwhen, getpeerlist
+                return 1.0, False
+
+            download_impl = self.session.start_download_from_tdef(tdef, dscfg)
+            download_impl.set_state_callback(cb, delay=1)
+
+        if not self.joined_community:
             self._logger.error("Pending download")
             return
 
         #shameless copy from boostingsource
-        CHANTOR_DB = ['ChannelTorrents.channel_id', 'Torrent.torrent_id', 'infohash', '""', 'length',
+        CHANTOR_DB = ['ChannelTorrents.channel_id', 'Torrent.torrent_id', 'infohash', 'Torrent.name', 'length',
                           'category', 'status', 'num_seeders', 'num_leechers', 'ChannelTorrents.id',
                           'ChannelTorrents.dispersy_id', 'ChannelTorrents.name', 'Torrent.name',
                           'ChannelTorrents.description', 'ChannelTorrents.time_stamp', 'ChannelTorrents.inserted']
-
+        infohash_bin = None
         torrent_values = self.joined_community._channelcast_db.getTorrentsFromChannelId(self.joined_community.get_channel_id(), True, CHANTOR_DB, 5)
         if torrent_values:
-            listtor = self.torrent_mgr.create_torrents(torrent_values, True,
-                    {self.joined_community.get_channel_id(): self.joined_community._channelcast_db.getChannel(self.joined_community.get_channel_id())})
+            log = "Channel id %s : " % self.joined_community.get_channel_id()
+            for t in torrent_values:
+                torrent_name = t[3]
+                log += "%s(%s) " % (t[3], hexlify(t[2]))
 
-            self._logger.error("list torrent %s", listtor)
+                if torrent_name[:-5] == name:
+                    infohash_bin = t[2]
+
+            self._logger.error(log)
+
+            if infohash_bin:
+
+                self._logger.error("Find %s with ihash %s", name, hexlify(infohash_bin))
+                for candidate in list(self.joined_community.dispersy_yield_candidates()):
+
+                    def _success_download(ihash_str):
+                        self.downloaded_torrent[name] = ihash_str
+
+                    self.session.lm.rtorrent_handler.download_torrent(
+                        candidate, infohash_bin, user_callback=_success_download, priority=1)
+
+                    self.session.lm.rtorrent_handler.download_torrent(
+                        None, infohash_bin, user_callback=_success_download, priority=1)
+
+        self._logger.error("Pending download")
 
 if __name__ == '__main__':
     ChannelDownloadClient.scenario_file = posix.environ.get('SCENARIO_FILE', 'channel_download.scenario')
