@@ -119,6 +119,7 @@ class ChannelDownloadClient(TriblerDispersyExperimentScriptClient):
         self.scenario_runner.register(self.join, 'join')
         self.scenario_runner.register(self.publish, 'publish')
         self.scenario_runner.register(self.start_download, 'start_download')
+        self.scenario_runner.register(self.setup_seeder, 'setup_seeder')
 
     def create(self):
         self._logger.error("creating-community")
@@ -155,6 +156,39 @@ class ChannelDownloadClient(TriblerDispersyExperimentScriptClient):
                 self.join_lc.stop()
                 return
 
+    def __ds_active_callback(self, ds):
+        from Tribler.Core.simpledefs import dlstatus_strings
+        self._logger.error('%s:%s infohash=%s, downsp=%d, upsp=%d, progress=%s, status=%s, peers=%s rat=%s dl=%s up=%s' %
+                          (self._dispersy.lan_address[0], self._dispersy.lan_address[1],
+                           ds.get_download().tdef.get_infohash().encode('hex')[:5],
+                           ds.get_current_speed('down')/1000,
+                           ds.get_current_speed('up')/1000,
+                           ds.get_progress(),
+                           dlstatus_strings[ds.get_status()],
+                           sum(ds.get_num_seeds_peers()),
+                           ds.seeding_ratio,
+                           ds.get_total_transferred('down')/1000,
+                           ds.get_total_transferred('up')/1000))
+
+        return 1.0, False
+
+    def setup_seeder(self, filename, size):
+        try:
+            tdef = TorrentDef.load(path.join(self.upload_dir_path, "%s.torrent" % filename))
+        except IOError:
+            # file not found. In DAS case, this is because the file in another node
+            tdef = self._create_test_torrent(filename, size)
+
+        dscfg = DefaultDownloadStartupConfig.getInstance().copy()
+        dscfg.set_dest_dir(self.upload_dir_path)
+        dscfg.set_hops(0)
+        dscfg.set_safe_seeding(False)
+
+        self._logger.error("Setup seeder for %s", hexlify(tdef.get_infohash()))
+
+        download = self.session.start_download_from_tdef(tdef, dscfg)
+        download.set_state_callback(self.__ds_active_callback)
+
     def publish(self, filename, size):
         if self.my_channel or self.joined_community:
             tdef = self._create_test_torrent(filename, size)
@@ -163,28 +197,7 @@ class ChannelDownloadClient(TriblerDispersyExperimentScriptClient):
             elif self.joined_community:
                 self.joined_community._disp_create_torrent_from_torrentdef(tdef, int(time()))
 
-            dscfg = DefaultDownloadStartupConfig.getInstance().copy()
-            dscfg.set_dest_dir(self.upload_dir_path)
-
-            def seeder_callback(ds):
-                from Tribler.Core.simpledefs import dlstatus_strings
-                self._logger.error('Seed infohash=%s, down=%d, up=%d, progress=%s, status=%s, peers=%s ul_lim=%s' %
-                              (tdef.get_infohash().encode('hex')[:5],
-                               ds.get_current_speed('down')/1000,
-                               ds.get_current_speed('up')/1000,
-                               ds.get_progress(),
-                               dlstatus_strings[ds.get_status()],
-                               sum(ds.get_num_seeds_peers()), ds.download.handle.upload_limit()))
-
-                if sum(ds.get_num_seeds_peers()) != 0:
-                    libdl = ds.download
-                    for i in libdl.handle.get_peer_info():
-                        self._logger.error("%s:%s source:%s", i.ip[0], i.ip[1], i.source)
-
-                return 1.0, False
-
-            download = self.session.start_download_from_tdef(tdef, dscfg)
-            download.set_state_callback(seeder_callback, delay=1)
+        self.setup_seeder(filename, size)
 
     def _create_test_torrent(self, filename='', size=0):
         filepath = path.join(self.upload_dir_path, "%s.data" % filename)
@@ -224,22 +237,13 @@ class ChannelDownloadClient(TriblerDispersyExperimentScriptClient):
 
             dscfg = DefaultDownloadStartupConfig.getInstance().copy()
             dscfg.set_dest_dir(path.join(self.session.get_state_dir(), "download"))
+            dscfg.set_hops(0)
+            dscfg.set_safe_seeding(False)
 
-            def cb(ds):
-                from Tribler.Core.simpledefs import dlstatus_strings
-                logging.error('Download infohash=%s, down=%d kB/s, up=%d kB/s, progress=%s, status=%s, peers=%s' %
-                              (tdef.get_infohash().encode('hex'),
-                               ds.get_current_speed('down')/1000,
-                               ds.get_current_speed('up')/1000,
-                               ds.get_progress(),
-                               dlstatus_strings[ds.get_status()],
-                               sum(ds.get_num_seeds_peers())))
-
-                #vwhen, getpeerlist
-                return 1.0, False
+            self._logger.error("Start downloading for %s", hexlify(tdef.get_infohash()))
 
             download_impl = self.session.start_download_from_tdef(tdef, dscfg)
-            download_impl.set_state_callback(cb, delay=1)
+            download_impl.set_state_callback(self.__ds_active_callback)
 
         if not self.joined_community:
             self._logger.error("Pending download")
