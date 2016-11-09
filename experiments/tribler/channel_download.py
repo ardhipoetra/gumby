@@ -4,10 +4,11 @@ import os
 from binascii import hexlify, unhexlify
 from os import path as path
 from sys import path as pythonpath
-from time import time
+import time
 
 import posix
 
+from twisted.internet import reactor
 from twisted.internet.task import LoopingCall
 
 from gumby.experiments.TriblerDispersyClient import TriblerDispersyExperimentScriptClient, BASE_DIR
@@ -50,6 +51,12 @@ class ChannelDownloadClient(TriblerDispersyExperimentScriptClient):
         self.session_deferred.addErrback(self._logger.error)
 
     def __config_dispersy(self, session):
+
+        count_out = 0
+        while self._dispersy is None and count_out < 100:
+            time.sleep(1.0)
+            count_out += 1
+
         self.session.lm.dispersy = self._dispersy
         # self.session.lm.init()
         self.session.get_dispersy = True
@@ -137,6 +144,9 @@ class ChannelDownloadClient(TriblerDispersyExperimentScriptClient):
 
         self._logger.error("trying-to-join-community on %s", self._community)
 
+        if self._community is None:
+            return
+        
         channels = self._community._channelcast_db.getAllChannels()
 
         if channels:
@@ -193,9 +203,9 @@ class ChannelDownloadClient(TriblerDispersyExperimentScriptClient):
         if self.my_channel or self.joined_community:
             tdef = self._create_test_torrent(filename, size)
             if self.my_channel:
-                self.my_channel._disp_create_torrent_from_torrentdef(tdef, int(time()))
+                self.my_channel._disp_create_torrent_from_torrentdef(tdef, int(time.time()))
             elif self.joined_community:
-                self.joined_community._disp_create_torrent_from_torrentdef(tdef, int(time()))
+                self.joined_community._disp_create_torrent_from_torrentdef(tdef, int(time.time()))
 
         self.setup_seeder(filename, size)
 
