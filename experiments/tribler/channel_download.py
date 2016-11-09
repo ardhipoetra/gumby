@@ -45,10 +45,20 @@ class ChannelDownloadClient(TriblerDispersyExperimentScriptClient):
         self.torrent_mgr = None
         self.downloaded_torrent = {}
 
+        self.num_peers = -1
+
     def start_session(self):
         super(ChannelDownloadClient, self).start_session()
         self.session_deferred.addCallback(self.__config_dispersy)
         self.session_deferred.addErrback(self._logger.error)
+
+        self.num_peers = os.environ.get('das4_instances_to_run', -1)
+        if self.num_peers == -1:
+            self._logger.error("Cannot get var:das4_instances_to_run")
+            self.num_peers = os.environ.get('sync_subscribers_amount', -1)
+            if self.num_peers == -1:
+                self._logger.error("Cannot get var:sync_subscribers_amount")
+                self.num_peers = len(self.get_peers()) or 200
 
     def __config_dispersy(self, session):
 
@@ -180,6 +190,9 @@ class ChannelDownloadClient(TriblerDispersyExperimentScriptClient):
                            ds.get_total_transferred('down')/1000,
                            ds.get_total_transferred('up')/1000))
 
+        if ds.get_progress() == 0.0 and ds.get_status() == 3:
+            self._connect_peer(ds.get_download().handle)
+
         return 1.0, False
 
     def setup_seeder(self, filename, size):
@@ -229,6 +242,13 @@ class ChannelDownloadClient(TriblerDispersyExperimentScriptClient):
 
         return tdef
 
+    def _connect_peer(self, thandle):
+        for cd in self.joined_community.dispersy_yield_verified_candidates():
+            ip = cd.lan_address[0]
+            for port in xrange(20000, 20000 + self.num_peers):
+                if thandle:
+                    thandle.connect_peer((ip, port), 0)
+
     def start_download(self, name):
         if not self.dl_lc:
             self.dl_lc = lc = LoopingCall(self.start_download, name)
@@ -254,6 +274,8 @@ class ChannelDownloadClient(TriblerDispersyExperimentScriptClient):
 
             download_impl = self.session.start_download_from_tdef(tdef, dscfg)
             download_impl.set_state_callback(self.__ds_active_callback)
+
+            self._connect_peer(download_impl.handle)
 
         if not self.joined_community:
             self._logger.error("Pending download")
@@ -294,5 +316,5 @@ class ChannelDownloadClient(TriblerDispersyExperimentScriptClient):
         self._logger.error("Pending download")
 
 if __name__ == '__main__':
-    ChannelDownloadClient.scenario_file = posix.environ.get('SCENARIO_FILE', 'channel_download.scenario')
+    ChannelDownloadClient.scenario_file = os.environ.get('SCENARIO_FILE', 'channel_download.scenario')
     main(ChannelDownloadClient)
