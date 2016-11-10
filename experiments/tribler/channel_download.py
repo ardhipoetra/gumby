@@ -315,6 +315,17 @@ class ChannelDownloadClient(TriblerDispersyExperimentScriptClient):
 
         self._logger.error("Pending download")
 
+    def stop(self, retry=3):
+        downloads_impl = self.session.get_downloads()
+        if downloads_impl:
+            for d in downloads_impl:
+                self._logger.error("Clean download %s", hexlify(d.tdef.get_infohash()))
+                self.session.remove_download(d, True, True)
+
+            reactor.callLater(10.0, self.stop, retry)
+        else:
+            super(ChannelDownloadClient, self).stop()
+
 if __name__ == '__main__':
     ChannelDownloadClient.scenario_file = os.environ.get('SCENARIO_FILE', 'channel_download.scenario')
     main(ChannelDownloadClient)
