@@ -38,7 +38,7 @@ class ChannelDownloadClient(TriblerDispersyExperimentScriptClient):
         self.joined_community = None
 
         self.join_lc = None
-        self.dl_lc = None
+        self.dl_lc = {}
 
         self.upload_dir_path = None
 
@@ -250,14 +250,14 @@ class ChannelDownloadClient(TriblerDispersyExperimentScriptClient):
                     thandle.connect_peer((ip, port), 0)
 
     def start_download(self, name):
-        if not self.dl_lc:
-            self.dl_lc = lc = LoopingCall(self.start_download, name)
-            lc.start(1.0, now=False)
+        if name not in self.dl_lc.keys():
+            self.dl_lc[name] = LoopingCall(self.start_download, name)
+            self.dl_lc[name].start(1.0, now=False)
 
             self.downloaded_torrent[name] = False
         elif self.downloaded_torrent[name]:
-            self.dl_lc.stop()
-            self.dl_lc = None
+            self.dl_lc[name].stop()
+            self.dl_lc[name] = None
 
             tdef = TorrentDef.load_from_memory(self.session.get_collected_torrent(
                                                unhexlify(self.downloaded_torrent[name])))
