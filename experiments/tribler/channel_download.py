@@ -178,7 +178,19 @@ class ChannelDownloadClient(TriblerDispersyExperimentScriptClient):
 
     def __ds_active_callback(self, ds):
         from Tribler.Core.simpledefs import dlstatus_strings
-        self._logger.error('%s:%s infohash=%s, downsp=%d, upsp=%d, progress=%s, status=%s, peers=%s rat=%s dl=%s up=%s' %
+
+        thandle = ds.get_download().handle
+        availability = 0.0
+        if thandle:
+            num_peers = thandle.status().num_peers
+            num_pieces, _ = ds.get_pieces_total_complete()
+
+            if num_peers * num_pieces:
+                for p_num in thandle.piece_availability():
+                    tmp = float(p_num) / float(num_peers * num_pieces)
+                    availability += tmp
+
+        self._logger.error('%s:%s infohash=%s, downsp=%d, upsp=%d, progress=%s, status=%s, peers=%s rat=%s dl=%s up=%s avail=%.8f' %
                           (self._dispersy.lan_address[0], self._dispersy.lan_address[1],
                            ds.get_download().tdef.get_infohash().encode('hex')[:5],
                            ds.get_current_speed('down')/1000,
@@ -188,12 +200,13 @@ class ChannelDownloadClient(TriblerDispersyExperimentScriptClient):
                            sum(ds.get_num_seeds_peers()),
                            ds.seeding_ratio,
                            ds.get_total_transferred('down')/1000,
-                           ds.get_total_transferred('up')/1000))
+                           ds.get_total_transferred('up')/1000,
+                           availability))
 
         if ds.get_progress() == 0.0 and ds.get_status() == 3:
             self._connect_peer(ds.get_download().handle)
 
-        return 1.0, False
+        return 1.0, True
 
     def setup_seeder(self, filename, size):
         try:
@@ -210,7 +223,7 @@ class ChannelDownloadClient(TriblerDispersyExperimentScriptClient):
         self._logger.error("Setup seeder for %s", hexlify(tdef.get_infohash()))
 
         download = self.session.start_download_from_tdef(tdef, dscfg)
-        download.set_state_callback(self.__ds_active_callback)
+        download.set_state_callback(self.__ds_active_callback, True)
 
     def publish(self, filename, size):
         if self.my_channel or self.joined_community:
@@ -273,7 +286,7 @@ class ChannelDownloadClient(TriblerDispersyExperimentScriptClient):
             self._logger.error("Start downloading for %s", hexlify(tdef.get_infohash()))
 
             download_impl = self.session.start_download_from_tdef(tdef, dscfg)
-            download_impl.set_state_callback(self.__ds_active_callback)
+            download_impl.set_state_callback(self.__ds_active_callback, True)
 
             self._connect_peer(download_impl.handle)
 
