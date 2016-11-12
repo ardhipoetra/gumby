@@ -329,6 +329,13 @@ class ChannelDownloadClient(TriblerDispersyExperimentScriptClient):
         self._logger.error("Pending download")
 
     def stop(self, retry=3):
+
+        # stop stalled download
+        for name in self.dl_lc.keys():
+            if not self.downloaded_torrent[name]:
+                self.dl_lc[name].stop()
+                self._logger.error("Can't make it to download %s", name)
+
         downloads_impl = self.session.get_downloads()
         if downloads_impl:
             for d in downloads_impl:
