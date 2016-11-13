@@ -190,7 +190,7 @@ class ChannelDownloadClient(TriblerDispersyExperimentScriptClient):
                     tmp = float(p_num) / float(num_peers * num_pieces)
                     availability += tmp
 
-        self._logger.error('%s:%s infohash=%s, downsp=%d, upsp=%d, progress=%s, status=%s, peers=%s rat=%s dl=%s up=%s avail=%.8f' %
+        self._logger.error('%s:%s infohash=%s, downsp=%d, upsp=%d, progress=%s, status=%s, peers=%s rat=%s dl=%s up=%s avail=%.8f dsavail=%.8f' %
                           (self._dispersy.lan_address[0], self._dispersy.lan_address[1],
                            ds.get_download().tdef.get_infohash().encode('hex')[:5],
                            ds.get_current_speed('down')/1000,
@@ -201,7 +201,8 @@ class ChannelDownloadClient(TriblerDispersyExperimentScriptClient):
                            ds.seeding_ratio,
                            ds.get_total_transferred('down')/1000,
                            ds.get_total_transferred('up')/1000,
-                           availability))
+                           availability,
+                           ds.get_availability()))
 
         if ds.get_progress() == 0.0 and ds.get_status() == 3:
             self._connect_peer(ds.get_download().handle)

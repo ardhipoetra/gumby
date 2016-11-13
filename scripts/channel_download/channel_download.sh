@@ -13,6 +13,7 @@
 #cd $OUTPUT_DIR
 
 echo "Running post channel downloading..."
+SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
 
 MERGE_TSV_FILE="all.tsv"
 
@@ -27,21 +28,30 @@ do
     fname="${log_%.*}_`echo ${thedir} | tr /. _`.log"
     cp $log "data/$fname"
 
+    echo "copying $fname to data/"
+
     tname="${fname%.*}.tsv"
 
-    python channel_dl_parse.py data/$fname > data/$tname
+    python $SCRIPT_DIR/channel_dl_parse.py data/$fname > data/$tname
 done
 
 tsvlist=$(find . -regex ".*\.tsv")
-echo -e "ts\tihash\tactor\tul_speed\tdl_speed\tul_tot\tdl_tot\tprogress" > $MERGE_TSV_FILE.raw
+echo -e "ts\tihash\tactor\tul_speed\tdl_speed\tul_tot\tdl_tot\tprogress\tavail\tdsavail" > $MERGE_TSV_FILE.raw
 
 for tsvs in $tsvlist
 do
-    tail -n +2 $tsvs >> $MERGE_TSV_FILE.raw
+    if [ `awk -F' ' '{print NF; exit}' $tsvs` -eq 10 ]; then
+        tail -n +2 $tsvs >> $MERGE_TSV_FILE.raw
+    fi
 done
 (head -n 1 $MERGE_TSV_FILE.raw && tail -n +2 $MERGE_TSV_FILE.raw | sort) > $MERGE_TSV_FILE.sorted
 
-#R --no-save --quiet < "$EXPERIMENT_DIR"/scripts/install.r
+sort -k2 ihashname.txt | uniq > ihashname_unique.txt
+mv ihashname_unique.txt ihashname.txt
+
+$SCRIPT_DIR/channel_dl_proc.R all.tsv.sorted
+
 
 # Create RData files for plotting from log files and crate image
-#"$EXPERIMENT_DIR"/scripts/log2rdata.sh
+convert -resize 25% -density 300 -depth 8 -quality 85 channel_dl_figure.pdf channel_dl_figure.png
+rm -rf localhost/ tracker/ err.txt 2>&1
