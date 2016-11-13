@@ -123,8 +123,8 @@ class ChannelDownloadClient(TriblerDispersyExperimentScriptClient):
         settings = self.session.lm.ltmgr.get_session().get_settings()
         settings['allow_multiple_connections_per_ip'] = True
         settings['ignore_limits_on_local_network'] = False
-        settings['download_rate_limit'] = 500000
-        settings["upload_rate_limit"] = 300000
+        settings['download_rate_limit'] = 250000
+        settings["upload_rate_limit"] = 100000
         self.session.lm.ltmgr.get_session().set_settings(settings)
 
         self.torrent_mgr = TorrentManagerCM(self.session)
@@ -156,7 +156,7 @@ class ChannelDownloadClient(TriblerDispersyExperimentScriptClient):
 
         if self._community is None:
             return
-        
+
         channels = self._community._channelcast_db.getAllChannels()
 
         if channels:
