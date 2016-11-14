@@ -1,73 +1,54 @@
 #!/usr/bin/env python2
-import shutil
+import libtorrent as lt
 import ConfigParser
 import logging
 import os
 import sys
+from binascii import hexlify, unhexlify
 from os import path as path
 from posix import environ
 from sys import path as pythonpath
-from os import getpid
+from twisted.internet import reactor
 # tribler path
 pythonpath.append(path.abspath(path.join(path.dirname(__file__), '..', '..', '..', "./tribler")))
 
 # os.chdir(os.path.abspath('./tribler'))
 sys.path.append('.')
 
-from gumby.experiments.TriblerDispersyClient import TriblerDispersyExperimentScriptClient,\
-    BASE_DIR
+from experiments.tribler.channel_download import ChannelDownloadClient
 from gumby.experiments.dispersyclient import main
+from gumby.experiments.TriblerDispersyClient import TriblerDispersyExperimentScriptClient
 
-from Tribler.Core.DownloadConfig import DefaultDownloadStartupConfig
 from Tribler.Core.TorrentDef import TorrentDef
 from Tribler.Policies.BoostingPolicy import SeederRatioPolicy, RandomPolicy, CreationDatePolicy
 from Tribler.Policies.BoostingManager import BoostingManager, BoostingSettings
 from Tribler.Policies.credit_mining_util import string_to_source
+from Tribler.Core.simpledefs import NTFY_TORRENTS, NTFY_INSERT, NTFY_UPDATE, NTFY_MAGNET_STARTED
 
-class CMining(TriblerDispersyExperimentScriptClient):
+class CreditMiningClient(ChannelDownloadClient):
 
     def __init__(self, *argv, **kwargs):
-        super(CMining, self).__init__(*argv, **kwargs)
-        from Tribler.community.allchannel.community import AllChannelCommunity
-        self.community_class = AllChannelCommunity
+        super(CreditMiningClient, self).__init__(*argv, **kwargs)
+
+        self._logger.setLevel(logging.DEBUG)
         self.boosting_manager = None
-        self.utility = None
         self.bsettings = None
 
+        self.chn_join_lc = None
+        self.loaded_torrent = {}
+
     def registerCallbacks(self):
-        super(CMining, self).registerCallbacks()
+        super(CreditMiningClient, self).registerCallbacks()
         self.scenario_runner.register(self.start_boosting, 'start_boosting')
         self.scenario_runner.register(self.add_source, 'add_source')
-        self.scenario_runner.register(self.create_test_torrent, 'create_test_torrent')
-        self.scenario_runner.register(self.start_download, 'start_download')
-        self.scenario_runner.register(self.stop_download, 'stop_download')
         self.scenario_runner.register(self.set_boost_settings, 'set_boost_settings')
-        self.scenario_runner.register(self.setup_seeder, 'setup_seeder')
+        self.scenario_runner.register(self.set_speed, 'set_speed')
 
-    def start_dispersy(self):
-        super(CMining, self).start_dispersy()
-        from Tribler.community.allchannel.community import AllChannelCommunity
-
-        self._dispersy.define_auto_load(AllChannelCommunity, self.session.dispersy_member, load=True,
-                                                   kargs={'tribler_session': self.session})
-
-    def create_test_torrent(self, filename='', size=0, with_file=False):
-        logging.error("Create %s torrent with file %s" % (filename, with_file))
-        filepath = path.join(self.session.get_state_dir(), "..", str(self.scenario_file) + str(filename))
-        logging.error("Creating torrent..")
-
-        tdef = TorrentDef()
-        if with_file:
-            with open(filepath, 'wb') as fp:
-                fp.write("0" * int(size))
-
-        tdef.add_content(filepath)
-
-        # doesn't matter for now
-        tdef.set_tracker("http://127.0.0.1:9197/announce")
-        tdef.finalize()
-        tdef_file = path.join(self.session.get_state_dir(), "..", "%s.torrent" % filename)
-        tdef.save(tdef_file)
+    def set_speed(self, download, upload):
+        settings = self.session.lm.ltmgr.get_session().get_settings()
+        settings['download_rate_limit'] = int(download)
+        settings["upload_rate_limit"] = int(upload)
+        self.session.lm.ltmgr.get_session().set_settings(settings)
 
     def set_boost_settings(self, filename=None):
 
@@ -76,6 +57,7 @@ class CMining(TriblerDispersyExperimentScriptClient):
         # parameter for experiment
         self.bsettings.credit_mining_path = os.path.join(self.session.get_state_dir(), "credit_mining")
         self.bsettings.load_config = False
+        self.bsettings.check_dependencies = False
         self.bsettings.min_connection_start = -1
         self.bsettings.min_channels_start = -1
 
@@ -102,7 +84,7 @@ class CMining(TriblerDispersyExperimentScriptClient):
 
         self.bsettings.policy = switch_policy[config.get(section, "policy")](self.session)
 
-        logging.debug("Read boosting settings %s", filename)
+        self._logger.debug("Read boosting settings %s", filename)
 
     def start_boosting(self):
         if self.bsettings is None:
@@ -118,113 +100,94 @@ class CMining(TriblerDispersyExperimentScriptClient):
         self.boosting_manager = BoostingManager(self.session, self.bsettings)
         self.session.lm.boosting_manager = self.boosting_manager
 
+        settings = self.boosting_manager.pre_session.get_settings()
+        settings['allow_multiple_connections_per_ip'] = True
+        settings['ignore_limits_on_local_network'] = False
+        self.boosting_manager.pre_session.set_settings(settings)
+
+        def receive_infohash(dummy_subject, dummy_change_type, dummy_infohash):
+            self.session.notifier.notify(NTFY_TORRENTS, NTFY_INSERT, dummy_infohash)
+
+        self.session.add_observer(receive_infohash, NTFY_TORRENTS, [NTFY_MAGNET_STARTED])
+
+        self._logger.debug("Run Boosting %s", self.boosting_manager)
+
+    def _load_torrent(self, torrent, callback):
+        # torrent is ChannelTorrent
+        def _success_download(ihash_str):
+            if ihash_str in self.loaded_torrent.keys():
+                return
+
+            self.loaded_torrent[ihash_str] = True
+
+            tdef = TorrentDef.load_from_memory(self.session.get_collected_torrent(unhexlify(ihash_str)))
+
+            self.session.lm.torrent_db.addOrGetTorrentID(unhexlify(ihash_str))
+            self.session.lm.torrent_db.addExternalTorrent(tdef)
+
+            from Tribler.Main.Utility.GuiDBTuples import Torrent
+            t = Torrent.fromTorrentDef(tdef)
+            t.torrent_db = self.session.lm.torrent_db
+            t.channelcast_db = self.session.lm.channelcast_db
+
+            if t.torrent_id <= 0:
+                del t.torrent_id
+
+            from Tribler.Main.Utility.GuiDBTuples import CollectedTorrent
+            ctorrent = CollectedTorrent(t, tdef)
+            self.loaded_torrent[ihash_str] = ctorrent
+
+            callback(ctorrent)
+
+            self.session.notifier.notify(NTFY_TORRENTS, NTFY_INSERT, unhexlify(ihash_str))
+
+            thandle = self.boosting_manager.pre_session.find_torrent(lt.big_number(unhexlify(ihash_str)))
+            self._connect_peer(thandle)
+
+        for candidate in list(self.joined_community.dispersy_yield_candidates()):
+            self.session.lm.rtorrent_handler.download_torrent(
+                    candidate, torrent.infohash, _success_download, priority=1)
+
+            self.session.lm.rtorrent_handler.download_torrent(
+                None, torrent.infohash, _success_download, priority=1)
+
     def add_source(self, strsource):
         assert strsource, "Must not empty"
 
-        self.boosting_manager.add_source(string_to_source(strsource))
+        if strsource == 'joinedchannel':
+            if self.joined_community:
+                channel_hash = self.joined_community.cid.encode("HEX")
+                self._logger.debug("Add Channel: %s ", self.joined_community.master_member.mid.encode("HEX"))
+                self.boosting_manager.add_source(string_to_source(channel_hash))
 
-    def start_download(self, name):
-        defaultDLConfig = DefaultDownloadStartupConfig.getInstance()
-        dscfg = defaultDLConfig.copy()
-        dscfg.set_dest_dir(path.join(self.session.get_state_dir(), "download"))
-
-        tdef = TorrentDef.load(path.join(self.session.get_state_dir(), "..", "%s.torrent" % name))
-
-        settings = self.session.lm.ltmgr.get_session().get_settings()
-        settings['allow_multiple_connections_per_ip'] = True
-        settings['ignore_limits_on_local_network'] = False
-        settings['download_rate_limit'] = 500000
-        settings["upload_rate_limit"] = 5000000
-        self.session.lm.ltmgr.get_session().set_settings(settings)
-
-        logging.error("Start downloading %s..", name)
-        def cb(ds):
-            from Tribler.Core.simpledefs import dlstatus_strings
-            logging.error('Download infohash=%s, down=%d kB/s, up=%d kB/s, progress=%s, status=%s, peers=%s' %
-                          (tdef.get_infohash().encode('hex'),
-                           ds.get_current_speed('down')/1000,
-                           ds.get_current_speed('up')/1000,
-                           ds.get_progress(),
-                           dlstatus_strings[ds.get_status()],
-                           sum(ds.get_num_seeds_peers())))
-
-            # if sum(ds.get_num_seeds_peers()) != 0:
-            #     libdl = ds.download
-            #     for i in libdl.handle.get_peer_info():
-            #         logging.error("%s:%s source:%s", i.ip[0], i.ip[1], i.source)
-
-            #vwhen, getpeerlist
-            return 1.0, False
-
-        download_impl = self.session.start_download_from_tdef(tdef, dscfg)
-        download_impl.set_state_callback(cb, delay=1)
-
-        ihash = tdef.get_infohash()
-        self.session.lm.torrent_checker.add_gui_request(ihash, True)
-
-    def stop_download(self, name):
-        tdef = TorrentDef.load(path.join(self.session.get_state_dir(), "..", "%s.torrent" % name))
-        logging.error("Stopping Download")
-        self.session.remove_download_by_id(tdef.get_infohash(), True, True)
+                ch = self.boosting_manager.get_source_object(self.joined_community.cid)
+                ch.torrent_mgr.load_torrent = self._load_torrent
+            else:
+                reactor.callLater(10.0, self.add_source, strsource)
+        else:
+            self.boosting_manager.add_source(string_to_source(strsource))
 
     def setup_session_config(self):
-        config = super(CMining, self).setup_session_config()
-        config.set_state_dir(os.path.abspath(os.path.join(environ.get('OUTPUT_DIR', None) or BASE_DIR, "Tribler-%d") % getpid()))
-        config.set_megacache(True)
-        config.set_dht_torrent_collecting(True)
-        config.set_torrent_collecting(True)
+        config = super(CreditMiningClient, self).setup_session_config()
+        config.set_videoplayer(False)
         config.set_torrent_checking(True)
-        config.set_enable_torrent_search(True)
+        # config.set_enable_torrent_search(True)
         config.set_enable_channel_search(True)
-        config.set_enable_multichain(False)
-        config.set_tunnel_community_enabled(False)
 
-        logging.debug("Do session config locally")
+        self._logger.debug("Do session config locally")
         return config
 
-    def setup_seeder(self, filename):
-        self.annotate('start seeding %s' % filename)
-        logging.error("Start seeding %s", filename)
-
-        filepath = path.join(self.session.get_state_dir(), "..", str(self.scenario_file) + str(filename))
-        shutil.copyfile(filepath, path.join(self.session.get_state_dir(), str(self.scenario_file) + str(filename)))
-
-        defaultDLConfig = DefaultDownloadStartupConfig.getInstance()
-        dscfg = defaultDLConfig.copy()
-        dscfg.set_dest_dir(self.session.get_state_dir())
-
-        tdef = TorrentDef.load(path.join(self.session.get_state_dir(), "..", "%s.torrent" % filename))
-
-        settings = self.session.lm.ltmgr.get_session().get_settings()
-        settings['allow_multiple_connections_per_ip'] = True
-        settings['ignore_limits_on_local_network'] = False
-        settings["upload_rate_limit"] = 300000
-
-        # settings["local_upload_rate_limit"] = 1000
-        # settings["ignore_limits_on_local_network"] = False
-
-        self.session.lm.ltmgr.get_session().set_settings(settings)
-
-        def cb(ds):
-            from Tribler.Core.simpledefs import dlstatus_strings
-            logging.error('Seed infohash=%s, down=%d, up=%d, progress=%s, status=%s, peers=%s ul_lim=%s' %
-                          (tdef.get_infohash().encode('hex')[:5],
-                           ds.get_current_speed('down')/1000,
-                           ds.get_current_speed('up')/1000,
-                           ds.get_progress(),
-                           dlstatus_strings[ds.get_status()],
-                           sum(ds.get_num_seeds_peers()), ds.download.handle.upload_limit()))
-
-            if sum(ds.get_num_seeds_peers()) != 0:
-                libdl = ds.download
-                for i in libdl.handle.get_peer_info():
-                    logging.error("%s:%s source:%s", i.ip[0], i.ip[1], i.source)
-
-            return 1.0, False
-
-        download = self.session.start_download_from_tdef(tdef, dscfg)
-        download.set_state_callback(cb, delay=1)
+    def stop(self, retry=3):
+        if self.boosting_manager:
+            for name in self.dl_lc.keys():
+                if not self.downloaded_torrent[name]:
+                    self.dl_lc[name].stop()
+                    self._logger.error("Can't make it to download %s", name)
+    
+            TriblerDispersyExperimentScriptClient.stop(self, retry)
+        else:
+            super(CreditMiningClient, self).stop()
 
 if __name__ == '__main__':
-    CMining.scenario_file = environ.get('SCENARIO_FILE', 'creditmining_base.scenario')
-    main(CMining)
+    CreditMiningClient.scenario_file = environ.get('SCENARIO_FILE', 'creditmining_base.scenario')
+    main(CreditMiningClient)

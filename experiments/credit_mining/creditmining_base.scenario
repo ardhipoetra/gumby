@@ -1,9 +1,28 @@
 # Inspired from hiddenservices-1-hop-multiple-seeders.scenario
-@0:0 set_master_member 3081a7301006072a8648ce3d020106052b81040027038192000407c67bd22f9a98d2679c1b71b5e9af35bfc7a1788baaa32749bc670ba4038bb8a2d947937155460eaa10424c4a1291d9ddc3db56f5108354133b1802ba4206196df8d077b8cc1ac500c4c7fab1c46b4b0b30daa644c8f3ae74898e7aa66f8a2eb96d7dbceb72f123224972f9b36c08a4a96cbbaf8fa1dac3e7cab740035d2ab03d211ff6880989427bb05676ee0d2e75
-@0:2 start_session
-@0:10 online
-@0:11 set_boost_settings boosting.ini.1 {1}
-@0:12 start_boosting {1}
-@0:30 add_source http://bt.etree.org/rss/bt_etree_org.rdf {1}
-@0:33 reset_dispersy_statistics
-@0:1000 stop
+@0:0 set_master_member 3081a7301006072a8648ce3d020106052b810400270381920004029fcf95d6baf026363a091950aa473196bd058a6d7342f2d77ddb61b8881982477a92e05a5bc81c0eaf40312d68f733f6ff6030b3ff8ae206b737bedefaa03d25c9398b500b0b1905f3982920cf29d17f6c21c1e4e88ad3bed15cdc02f17fe9dba8c0aead1a8ed5ac400769368232924a42e0ad249fe112e44cd3d4af56ce9da6f57e2f2ddf14d714cb4fa99c7556a9
+@0:2 start_dispersy {1-5}
+@0:10 start_session
+@0:20 online
+@0:20 reset_dispersy_statistics
+@0:20 annotate start-experiment
+# 1 : creator
+# 2-4 : peers (#2 extra seeders)
+# 5 : miners
+@0:22 create {1}
+@0:25 publish file1gb_1 1524288077 {1}
+@0:30 publish file300mb_1 324288077 {1}
+@0:50 join {2-5}
+@0:60 setup_seeder file1gb_1 1524288077 {2}
+@1:10 set_boost_settings boosting.ini.1 {5}
+@1:11 start_boosting {5}
+@1:12 add_source joinedchannel {5}
+# ready on minute 1'15
+@1:15 start_download file300mb_1 {3}
+@3:30 publish file300mb_2 324281237 {1}
+@5:1 start_download file300mb_1 {4}
+@10:1 start_download file1gb_1 {4}
+# @10:5 start_download file300mb_2 {5}
+@10:30 start_download file300mb_1 {2}
+@25:1 start_download file1gb_1 {3}
+@58:0 reset_dispersy_statistics
+@59:0 stop

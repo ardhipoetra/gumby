@@ -1,22 +1,29 @@
-# Inspired from hiddenservices-1-hop-multiple-seeders.scenario
-@0:0 set_master_member 3081a7301006072a8648ce3d020106052b81040027038192000407c67bd22f9a98d2679c1b71b5e9af35bfc7a1788baaa32749bc670ba4038bb8a2d947937155460eaa10424c4a1291d9ddc3db56f5108354133b1802ba4206196df8d077b8cc1ac500c4c7fab1c46b4b0b30daa644c8f3ae74898e7aa66f8a2eb96d7dbceb72f123224972f9b36c08a4a96cbbaf8fa1dac3e7cab740035d2ab03d211ff6880989427bb05676ee0d2e75
-@0:2 start_session
-@0:10 online
-@0:11 create_test_torrent the1gb1 1073741824 True {1}
-@0:11 create_test_torrent the2gb1 2147483648 True {2}
-@0:11 create_test_torrent the2gb2 2147483655 True {1}
-@0:14 setup_seeder the1gb1 {1}
-@0:14 setup_seeder the2gb1 {2}
-@0:14 setup_seeder the2gb2 {1}
-@0:14 setup_seeder the2gb1 {1}
-@0:130 start_download the2gb1 {3}
-@0:160 set_boost_settings boosting.ini.1 {3}
-@0:160 start_boosting {3}
-@0:162 add_source http://bt.etree.org/rss/bt_etree_org.rdf {3}
+@0:0 set_master_member 3081a7301006072a8648ce3d020106052b81040027038192000407aa5bbfe396e3444bc4281b9511c6f8bacd9b4874afca3191b82a5737da21dab8c6c03ffbf67c4b9a6ed61295433729358258534a5ae36fbbd6f3b355cb742a479ec666d18f5263064946632eb872d3aabc5560e7b7c323997b65ae3a875b0cad010bcb009d7134d53eccb0b0c59bea26fc2f1e23e0c5f0f5fc768bdcdf0107a47028f876c14d3b7dc4d9b098a7720f
+@0:2 start_dispersy {1-5}
+@0:10 start_session
+@0:20 online
+@0:20 reset_dispersy_statistics
+@0:20 annotate start-experiment
+# 1 : creator
+# 2-3: seeders
+# 4 : miners/downloaders
+@0:22 create {1}
+@0:23 join {2-4}
+@0:25 publish the1gb1 1073741824 {1}
+@0:26 publish the2gb1 2147483648 {1}
+@0:27 publish the2gb2 2147483655 {1}
+@0:44 setup_seeder the1gb1 1073741824 {2}
+@0:44 setup_seeder the2gb1 2147483648 {3}
+@0:44 setup_seeder the2gb2 2147483655 {2}
+@0:44 setup_seeder the2gb1 2147483648 {2}
+@0:130 start_download the2gb1 {4}
+@0:160 set_boost_settings boosting.ini.1 {4}
+@0:160 start_boosting {4}
+@0:162 add_source http://rss-creditmining.herokuapp.com/feeds/ {4}
 @0:163 reset_dispersy_statistics
-@0:13000 start_download the1gb1 {3}
-@0:17000 stop_download the2gb1 {3}
-@0:25000 start_download the2gb2 {3}
-@0:32000 start_download the2gb1 {3}
-@0:40000 stop_download the1gb1 {3}
+@0:13000 start_download the1gb1 {4}
+@0:17000 stop_download the2gb1 {4}
+@0:25000 start_download the2gb2 {4}
+@0:32000 start_download the2gb1 {4}
+@0:40000 stop_download the1gb1 {4}
 @0:43180 stop
