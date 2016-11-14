@@ -2,11 +2,21 @@
 @0:0 set_master_member 3081a7301006072a8648ce3d020106052b81040027038192000407c67bd22f9a98d2679c1b71b5e9af35bfc7a1788baaa32749bc670ba4038bb8a2d947937155460eaa10424c4a1291d9ddc3db56f5108354133b1802ba4206196df8d077b8cc1ac500c4c7fab1c46b4b0b30daa644c8f3ae74898e7aa66f8a2eb96d7dbceb72f123224972f9b36c08a4a96cbbaf8fa1dac3e7cab740035d2ab03d211ff6880989427bb05676ee0d2e75
 @0:2 start_session
 @0:10 online
-@0:11 create_test_torrent the200mb 214748364 True {1}
-@0:11 create_test_torrent the500mb 514748364 True {2}
-@0:14 setup_seeder the200mb {1}
-@0:14 setup_seeder the500mb {2}
-@0:30 start_download the200mb {3}
-@0:30 start_download the500mb {3}
-@0:30 reset_dispersy_statistics
-@0:1000 stop
+@0:11 create_test_torrent the1gb1 1073741824 True {1}
+@0:11 create_test_torrent the2gb1 2147483648 True {2}
+@0:11 create_test_torrent the2gb2 2147483655 True {1}
+@0:14 setup_seeder the1gb1 {1}
+@0:14 setup_seeder the2gb1 {2}
+@0:14 setup_seeder the2gb2 {1}
+@0:14 setup_seeder the2gb1 {1}
+@0:130 start_download the2gb1 {3}
+@0:160 set_boost_settings boosting.ini.1 {3}
+@0:160 start_boosting {3}
+@0:162 add_source http://bt.etree.org/rss/bt_etree_org.rdf {3}
+@0:163 reset_dispersy_statistics
+@0:13000 start_download the1gb1 {3}
+@0:17000 stop_download the2gb1 {3}
+@0:25000 start_download the2gb2 {3}
+@0:32000 start_download the2gb1 {3}
+@0:40000 stop_download the1gb1 {3}
+@0:43180 stop
