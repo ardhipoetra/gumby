@@ -1,0 +1,3 @@
+[submodule "experiments/credit_mining/python-bittorrent"]
+	path = experiments/credit_mining/python-bittorrent
+	url = https://github.com/JosephSalisbury/python-bittorrent.git
