@@ -47,6 +47,8 @@ class ChannelDownloadClient(TriblerDispersyExperimentScriptClient):
 
         self.num_peers = -1
 
+        self.id_experiment = os.environ['EXPERIMENT_NAME'].replace(" ", "")
+
     def start_session(self):
         super(ChannelDownloadClient, self).start_session()
         self.session_deferred.addCallback(self.__config_dispersy)
@@ -210,6 +212,7 @@ class ChannelDownloadClient(TriblerDispersyExperimentScriptClient):
         return 1.0, True
 
     def setup_seeder(self, filename, size):
+        filename = self.id_experiment + "_" + filename
         try:
             tdef = TorrentDef.load(path.join(self.upload_dir_path, "%s.torrent" % filename))
         except IOError:
@@ -228,7 +231,7 @@ class ChannelDownloadClient(TriblerDispersyExperimentScriptClient):
 
     def publish(self, filename, size):
         if self.my_channel or self.joined_community:
-            tdef = self._create_test_torrent(filename, size)
+            tdef = self._create_test_torrent(self.id_experiment + "_" + filename, size)
             if self.my_channel:
                 self.my_channel._disp_create_torrent_from_torrentdef(tdef, int(time.time()))
             elif self.joined_community:
@@ -264,6 +267,7 @@ class ChannelDownloadClient(TriblerDispersyExperimentScriptClient):
                     thandle.connect_peer((ip, port), 0)
 
     def start_download(self, name):
+        name = name if name.startswith(self.id_experiment) else self.id_experiment + "_" + name
         if name not in self.dl_lc.keys():
             self.dl_lc[name] = LoopingCall(self.start_download, name)
             self.dl_lc[name].start(1.0, now=False)
