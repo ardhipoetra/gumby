@@ -138,6 +138,7 @@ class ChannelDownloadClient(TriblerDispersyExperimentScriptClient):
         self.scenario_runner.register(self.join, 'join')
         self.scenario_runner.register(self.publish, 'publish')
         self.scenario_runner.register(self.start_download, 'start_download')
+        self.scenario_runner.register(self.stop_download, 'stop_download')
         self.scenario_runner.register(self.setup_seeder, 'setup_seeder')
 
     def create(self):
@@ -333,12 +334,25 @@ class ChannelDownloadClient(TriblerDispersyExperimentScriptClient):
 
         self._logger.error("Pending download")
 
+    def stop_download(self, dname):
+        dname = self.id_experiment + "_" + dname
+        for name in self.dl_lc.keys():
+            if name == dname:
+                if not self.downloaded_torrent[name]:
+                    self._logger.error("Can't make it to download %s", name)
+                    self.dl_lc[name].stop()
+                else:
+                    ihash = unhexlify(self.downloaded_torrent[dname])
+                    d_impl = self.session.get_download(ihash)
+                    self._logger.error("Stopping Download %s", self.downloaded_torrent[dname])
+                    self.session.remove_download_by_id(ihash, True, True)
+
     def stop(self, retry=3):
 
         # stop stalled download
         for name in self.dl_lc.keys():
             if not self.downloaded_torrent[name]:
-                self.dl_lc[name].stop()
+                self.dl_lc.pop(name).stop()
                 self._logger.error("Can't make it to download %s", name)
 
         downloads_impl = self.session.get_downloads()
