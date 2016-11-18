@@ -20,7 +20,8 @@ from gumby.experiments.dispersyclient import main
 from gumby.experiments.TriblerDispersyClient import TriblerDispersyExperimentScriptClient
 
 from Tribler.Core.TorrentDef import TorrentDef
-from Tribler.Policies.BoostingPolicy import SeederRatioPolicy, RandomPolicy, CreationDatePolicy
+from Tribler.Policies.BoostingPolicy import SeederRatioPolicy, RandomPolicy, CreationDatePolicy, ScoringPolicy, \
+    BoostingPolicy
 from Tribler.Policies.BoostingManager import BoostingManager, BoostingSettings
 from Tribler.Policies.credit_mining_util import string_to_source
 from Tribler.Core.simpledefs import NTFY_TORRENTS, NTFY_INSERT, NTFY_UPDATE, NTFY_MAGNET_STARTED
@@ -79,7 +80,9 @@ class CreditMiningClient(ChannelDownloadClient):
         switch_policy = {
             "random": RandomPolicy,
             "creation": CreationDatePolicy,
-            "seederratio": SeederRatioPolicy
+            "seederratio": SeederRatioPolicy,
+            "scoring": ScoringPolicy,
+            "all": PickAllPolicy
         }
 
         self.bsettings.policy = switch_policy[config.get(section, "policy")](self.session)
@@ -187,6 +190,12 @@ class CreditMiningClient(ChannelDownloadClient):
             TriblerDispersyExperimentScriptClient.stop(self, retry)
         else:
             super(CreditMiningClient, self).stop()
+
+
+class PickAllPolicy(BoostingPolicy):
+    def apply(self, torrents, max_active, force=False):
+        self._logger.error("Return all Torrents")
+        return list(torrents.itervalues()), []
 
 if __name__ == '__main__':
     CreditMiningClient.scenario_file = environ.get('SCENARIO_FILE', 'creditmining_base.scenario')
