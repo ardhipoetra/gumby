@@ -193,6 +193,11 @@ class ChannelDownloadClient(TriblerDispersyExperimentScriptClient):
                     tmp = float(p_num) / float(num_peers * num_pieces)
                     availability += tmp
 
+        peers = [x for x in ds.get_peerlist() if any(x['have']) and not
+                 x['ip'].startswith("127.0.0")]
+
+        ds.get_peerlist = lambda: peers
+
         self._logger.error('%s:%s infohash=%s, downsp=%d, upsp=%d, progress=%s, status=%s, peers=%s rat=%s dl=%s up=%s avail=%.8f dsavail=%.8f' %
                           (self._dispersy.lan_address[0], self._dispersy.lan_address[1],
                            ds.get_download().tdef.get_infohash().encode('hex')[:5],
@@ -200,7 +205,7 @@ class ChannelDownloadClient(TriblerDispersyExperimentScriptClient):
                            ds.get_current_speed('up')/1000,
                            ds.get_progress(),
                            dlstatus_strings[ds.get_status()],
-                           sum(ds.get_num_seeds_peers()),
+                           len(peers),
                            ds.seeding_ratio,
                            ds.get_total_transferred('down')/1000,
                            ds.get_total_transferred('up')/1000,
@@ -338,9 +343,10 @@ class ChannelDownloadClient(TriblerDispersyExperimentScriptClient):
         dname = self.id_experiment + "_" + dname
         for name in self.dl_lc.keys():
             if name == dname:
+                lc = self.dl_lc.pop(name)
                 if not self.downloaded_torrent[name]:
                     self._logger.error("Can't make it to download %s", name)
-                    self.dl_lc[name].stop()
+                    lc.stop()
                 else:
                     ihash = unhexlify(self.downloaded_torrent[dname])
                     d_impl = self.session.get_download(ihash)
