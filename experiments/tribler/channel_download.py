@@ -189,26 +189,69 @@ class ChannelDownloadClient(TriblerDispersyExperimentScriptClient):
         from Tribler.Core.simpledefs import dlstatus_strings
 
         thandle = ds.get_download().handle
-        availability = 0.0
-        if thandle:
-            num_peers = thandle.status().num_peers
-            num_pieces, _ = ds.get_pieces_total_complete()
-
-            if num_peers * num_pieces:
-                for p_num in thandle.piece_availability():
-                    tmp = float(p_num) / float(num_peers * num_pieces)
-                    availability += tmp
+        # availability = 0.0
+        # if thandle:
+        #     num_peers = thandle.status().num_peers
+        #     num_pieces, _ = ds.get_pieces_total_complete()
+        #
+        #     if num_peers * num_pieces:
+        #         for p_num in thandle.piece_availability():
+        #             tmp = float(p_num) / float(num_peers * num_pieces)
+        #             availability += tmp
 
         peers = [x for x in ds.get_peerlist() if any(x['have']) and not
-                 x['ip'].startswith("127.0.0")]
+                 x['ip'].startswith("127.0.0") and not x['extended_version'].startswith("Seeder") and not x['extended_version'].startswith("Miners")]
+
+        def _avail(peers):
+            merged_bitfields = None
+            availability = 0.0
+
+            settings = self.session.lm.ltmgr.get_session().get_settings()
+            if settings['user_agent'].startswith("Seeder") or settings['user_agent'].startswith("Miners"):
+                pass
+            else:
+                return -1, -1, -1, availability
+
+            for peer in peers:
+                completed = peer.get('completed', 0)
+                have = peer.get('have', [])
+
+                if merged_bitfields is None:
+                    merged_bitfields = [0] * len(have)
+
+                if completed == 1 or (have and all(have)):
+                    for i in range(len(have)):
+                        merged_bitfields[i] += 1
+                else:
+                    for i in range(len(have)):
+                        if have[i]:
+                            merged_bitfields[i] += 1
+
+            if merged_bitfields:
+
+                num_peers = len(peers)
+                num_piece = len(merged_bitfields)
+
+                if num_piece * num_peers:
+                    for pc in merged_bitfields:
+                        tmp = float(pc) / float(num_peers * num_piece)
+                        availability += tmp
+
+                nr_leechers_complete = min(merged_bitfields)
+                nr_more_than_min = len([yx for yx in merged_bitfields if yx > nr_leechers_complete])
+
+                return nr_leechers_complete, nr_more_than_min, num_piece, availability
+
+            return -1, -1, -1, availability
 
         ds.get_peerlist = lambda: peers
+        avail_p = _avail(peers)
 
         setting = self.session.lm.ltmgr.get_session().get_settings()
         dlmax = setting['download_rate_limit']
         ulmax = setting['upload_rate_limit']
 
-        self._logger.error('%s:%s infohash=%s, downsp=%d, upsp=%d, progress=%s, status=%s, peers=%s rat=%s dl=%s up=%s avail=%.8f dsavail=%.8f' %
+        self._logger.error('%s:%s infohash=%s, downsp=%d, upsp=%d, progress=%s, status=%s, peers=%s rat=%s dl=%s up=%s avail=%.8f nodem=%d piecem=%d lenpiece=%d' %
                           (self._dispersy.lan_address[0], self._dispersy.lan_address[1],
                            ds.get_download().tdef.get_infohash().encode('hex')[:5],
                            min(ds.get_current_speed('down'), dlmax + 100000)/1000,
@@ -219,8 +262,10 @@ class ChannelDownloadClient(TriblerDispersyExperimentScriptClient):
                            ds.seeding_ratio,
                            ds.get_total_transferred('down')/1000,
                            ds.get_total_transferred('up')/1000,
-                           availability,
-                           ds.get_availability()))
+                           avail_p[3],
+                           avail_p[0],
+                           avail_p[1],
+                           avail_p[2]))
 
         if ds.get_progress() == 0.0 and ds.get_status() == 3:
             self._connect_peer(ds.get_download().handle)
@@ -228,6 +273,11 @@ class ChannelDownloadClient(TriblerDispersyExperimentScriptClient):
         return 1.0, True
 
     def setup_seeder(self, filename, size):
+
+        settings = self.session.lm.ltmgr.get_session().get_settings()
+        settings['user_agent'] = "Seeder/%s" % self.my_id
+        self.session.lm.ltmgr.get_session().set_settings(settings)
+
         exp_filename = self.id_experiment + "_" + filename
         tpath = path.join(self.upload_dir_path, "%s.data" % exp_filename)
         tdef = None

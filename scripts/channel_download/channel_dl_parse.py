@@ -16,7 +16,9 @@ class Activity:
         self.dltotal = 0
         self.progress = 0
         self.avail = 0.0
-        self.dsavail = 0.0
+        self.nodem = 0.0
+        self.piecem = 0.0
+        self.lenpiece = 0
 
         self.ip = "0.0.0.0:0"
 
@@ -46,7 +48,7 @@ def main():
                 if len(split_msg) == 5:
                     infohash_name[split_msg[-1]] = split_msg[1]
 
-            if len(split_msg) == 12:
+            if len(split_msg) == 14:
                 try:
                     ihash_short = split_msg[1].split("=")[1][:-1]
                 except IndexError:
@@ -72,15 +74,17 @@ def main():
                 a.infohash = ihash_short
 
                 a.avail = float(split_msg[10].split("=")[1])
-                a.dsavail = float(split_msg[11].split("=")[1])
+                a.nodem = float(split_msg[11].split("=")[1])
+                a.piecem = float(split_msg[12].split("=")[1])
+                a.lenpiece = float(split_msg[13].split("=")[1])
 
                 tlist[line] = a
 
-    print "ts\tihash\tactor\tul_speed\tdl_speed\tul_tot\tdl_tot\tprogress\tavail\tdsavail"
+    print "ts\tihash\tactor\tul_speed\tdl_speed\tul_tot\tdl_tot\tprogress\tavail\tnodem\tpiecem\tlenpiece"
     for _, a in tlist.items():
-        print "%s\t%s\t%s\t%d\t%d\t%d\t%d\t%f\t%f\t%f\t" %(a.ts, infohash_short_long[a.infohash], a.ip, a.ulrate,
-                                                           a.dlrate, a.ultotal, a.dltotal, a.progress,
-                                                           a.avail, a.dsavail)
+        print "%s\t%s\t%s\t%d\t%d\t%d\t%d\t%f\t%f\t%f\t%f\t%d" %(a.ts, infohash_short_long[a.infohash], a.ip, a.ulrate,
+                                                               a.dlrate, a.ultotal, a.dltotal, a.progress,
+                                                               a.avail, a.nodem, a.piecem, a.lenpiece)
 
     with open('ihashname.txt', 'a') as tbl:
         for i in infohash_name.keys():

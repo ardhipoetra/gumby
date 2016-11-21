@@ -36,11 +36,11 @@ do
 done
 
 tsvlist=$(find . -regex ".*\.tsv")
-echo -e "ts\tihash\tactor\tul_speed\tdl_speed\tul_tot\tdl_tot\tprogress\tavail\tdsavail" > $MERGE_TSV_FILE.raw
+echo -e "ts\tihash\tactor\tul_speed\tdl_speed\tul_tot\tdl_tot\tprogress\tavail\tnodem\tpiecem\tlenpiece" > $MERGE_TSV_FILE.raw
 
 for tsvs in $tsvlist
 do
-    if [ `awk -F' ' '{print NF; exit}' $tsvs` -eq 10 ]; then
+    if [ `awk -F' ' '{print NF; exit}' $tsvs` -eq 12 ]; then
         tail -n +2 $tsvs >> $MERGE_TSV_FILE.raw
     fi
 done
@@ -54,4 +54,5 @@ $SCRIPT_DIR/channel_dl_proc.R all.tsv.sorted
 
 # Create RData files for plotting from log files and crate image
 convert -resize 25% -density 300 -depth 8 -quality 85 channel_dl_figure.pdf channel_dl_figure.png
-rm -rf localhost/ tracker/ err.txt 2>&1
+zip -r zipped_archive.zip .
+rm -rf localhost/ tracker/ err.txt data/ 2>&1
