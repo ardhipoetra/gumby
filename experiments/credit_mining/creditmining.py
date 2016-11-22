@@ -106,7 +106,12 @@ class CreditMiningClient(ChannelDownloadClient):
         settings = self.boosting_manager.pre_session.get_settings()
         settings['allow_multiple_connections_per_ip'] = True
         settings['ignore_limits_on_local_network'] = False
+        settings['user_agent'] = "Minerspre/%s" % self.my_id
         self.boosting_manager.pre_session.set_settings(settings)
+
+        settings = self.session.lm.ltmgr.get_session().get_settings()
+        settings['user_agent'] = "Miners/%s" % self.my_id
+        self.session.lm.ltmgr.get_session().set_settings(settings)
 
         def receive_infohash(dummy_subject, dummy_change_type, dummy_infohash):
             self.session.notifier.notify(NTFY_TORRENTS, NTFY_INSERT, dummy_infohash)

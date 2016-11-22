@@ -267,7 +267,8 @@ class ChannelDownloadClient(TriblerDispersyExperimentScriptClient):
                            avail_p[1],
                            avail_p[2]))
 
-        if ds.get_progress() == 0.0 and ds.get_status() == 3:
+        if ds.get_progress() == 0.0 and ds.get_status() == 3 and not \
+                self.session.lm.ltmgr.get_session().get_settings()['user_agent'].startswith("Seeder"):
             self._connect_peer(ds.get_download().handle)
 
         return 1.0, True
