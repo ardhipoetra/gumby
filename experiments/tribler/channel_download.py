@@ -219,21 +219,30 @@ class ChannelDownloadClient(TriblerDispersyExperimentScriptClient):
 
     def setup_seeder(self, filename, size):
         filename = self.id_experiment + "_" + filename
-        try:
-            tdef = TorrentDef.load(path.join(self.upload_dir_path, "%s.torrent" % filename))
-        except IOError:
+        tpath = path.join(self.upload_dir_path, "%s.data" % filename)
+        tdef = None
+        if path.isfile(tpath):
+            tpath = path.join(self.upload_dir_path, "%s.torrent" % filename)
+
+            if path.isfile(tpath):
+                tdef = TorrentDef.load(tpath)
+            else:
+                # writing file has not finished yet
+                reactor.callLater(10.0, self.setup_seeder, filename, size)
+        else:
             # file not found. In DAS case, this is because the file in another node
             tdef = self._create_test_torrent(filename, size)
 
-        dscfg = DefaultDownloadStartupConfig.getInstance().copy()
-        dscfg.set_dest_dir(self.upload_dir_path)
-        dscfg.set_hops(0)
-        dscfg.set_safe_seeding(False)
+        if tdef:
+            dscfg = DefaultDownloadStartupConfig.getInstance().copy()
+            dscfg.set_dest_dir(self.upload_dir_path)
+            dscfg.set_hops(0)
+            dscfg.set_safe_seeding(False)
 
-        self._logger.error("Setup seeder for %s", hexlify(tdef.get_infohash()))
+            self._logger.error("Setup seeder for %s", hexlify(tdef.get_infohash()))
 
-        download = self.session.start_download_from_tdef(tdef, dscfg)
-        download.set_state_callback(self.__ds_active_callback, True)
+            download = self.session.start_download_from_tdef(tdef, dscfg)
+            download.set_state_callback(self.__ds_active_callback, True)
 
     def publish(self, filename, size):
         if self.my_channel or self.joined_community:
