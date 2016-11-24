@@ -49,6 +49,9 @@ class CreditMiningClient(ChannelDownloadClient):
         settings = self.session.lm.ltmgr.get_session().get_settings()
         settings['download_rate_limit'] = int(download)
         settings["upload_rate_limit"] = int(upload)
+        settings["max_rejects"] = 50
+        settings["allowed_fast_set_size"] = 500
+        settings["inactivity_timeout"] = 1200
         self.session.lm.ltmgr.get_session().set_settings(settings)
 
     def set_boost_settings(self, filename=None):
