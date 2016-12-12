@@ -1,4 +1,6 @@
 #!/usr/bin/env python2
+import shutil
+
 import libtorrent as lt
 import ConfigParser
 import logging
@@ -194,8 +196,14 @@ class CreditMiningClient(ChannelDownloadClient):
                 if not self.downloaded_torrent[name]:
                     self.dl_lc[name].stop()
                     self._logger.error("Can't make it to download %s", name)
+
+            # make sure delete downloaded credit mining stuff
+            shutil.rmtree(self.bsettings.credit_mining_path, ignore_errors=True)
+
+            self.boosting_manager.shutdown()
     
-            TriblerDispersyExperimentScriptClient.stop(self, retry)
+            if self.dl_lc.keys():
+                super(CreditMiningClient, self).stop()
         else:
             super(CreditMiningClient, self).stop()
 
