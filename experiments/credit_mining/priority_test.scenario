@@ -1,29 +1,38 @@
 @0:0 set_master_member 3081a7301006072a8648ce3d020106052b81040027038192000403cbbfd2dfb67a7db66c88988df56f93fa6e7f982f9a6a0fa8898492c8b8cae23e10b159ace60b7047012082a5aa4c6e221d7e58107bb550436d57e046c11ab4f51f0ab18fa8f58d0346cc12d1cc2b61fc86fe5ed192309152e11e3f02489e30c7c971dd989e1ce5030ea0fb77d5220a92cceb567cbc94bc39ba246a42e215b55e9315b543ddeff0209e916f77c0d747
-@0:2 start_dispersy {1-5}
+@0:2 start_dispersy {1-10}
 @0:10 start_session
-@0:20 online
-@0:20 reset_dispersy_statistics
-@0:20 annotate start-experiment
+@0:45 online
+@0:46 reset_dispersy_statistics
+@0:47 annotate start-experiment
 # 1 : creator
-# 2-3: seeders
-# 4 : miners/downloaders
-@0:22 create {1}
-@0:23 join {2-4}
-@0:25 publish the1gb1 1073741824 {1}
-@0:26 publish the2gb1 2147483648 {1}
-@0:27 publish the2gb2 2147483655 {1}
-@0:44 setup_seeder the1gb1 1073741824 {2}
-@0:44 setup_seeder the2gb1 2147483648 {3}
-@0:44 setup_seeder the2gb2 2147483655 {2}
-@0:44 setup_seeder the2gb1 2147483648 {2}
-@0:130 start_download the2gb1 {4}
-@0:160 set_boost_settings boosting.ini.1 {4}
-@0:160 start_boosting {4}
-@0:162 add_source http://rss-creditmining.herokuapp.com/feeds/ {4}
-@0:163 reset_dispersy_statistics
-@0:13000 start_download the1gb1 {4}
-@0:17000 stop_download the2gb1 {4}
-@0:25000 start_download the2gb2 {4}
-@0:32000 start_download the2gb1 {4}
-@0:40000 stop_download the1gb1 {4}
-@0:43180 stop
+# 2-8: seeders
+# 9 : miners/downloaders
+# 10 : downloaders
+@0:50 create {1}
+@0:60 join {2-10}
+@1:5 publish the1gb1 1073741824 {1}
+@1:6 publish the2gb1 2147483648 {1}
+@1:7 publish the2gb2 2147483655 {1}
+@1:13 setup_seeder the1gb1 1073741824 {2}
+@1:14 setup_seeder the1gb1 1073741824 {3}
+@1:15 setup_seeder the2gb1 2147483648 {4}
+@1:16 setup_seeder the2gb1 2147483648 {5}
+@1:17 setup_seeder the2gb1 2147483648 {6}
+@1:18 setup_seeder the2gb2 2147483655 {7}
+@1:19 setup_seeder the2gb2 2147483655 {8}
+@1:30 start_download the2gb2 {9}
+@1:31 start_download the2gb2 {10}
+@1:0:1 set_boost_settings boosting.ini.1 {9}
+@1:0:3 start_boosting {9}
+@1:0:5 add_source http://rss-creditmining.herokuapp.com/feeds/ {9}
+@2:1:30 start_download the2gb1 {9}
+@2:1:31 start_download the2gb1 {10}
+@3:1:30 stop_download the2gb2 {9}
+@3:1:31 stop_download the2gb2 {10}
+@3:40:30 start_download the1gb1 {9}
+@3:40:31 start_download the1gb1 {10}
+@4:40:30 stop_download the1gb1 {9}
+@4:40:31 stop_download the1gb1 {10}
+@5:20:30 stop_download the2gb1 {9}
+@5:20:31 stop_download the2gb1 {10}
+@5:59:0 stop
