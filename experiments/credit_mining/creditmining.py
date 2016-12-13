@@ -164,6 +164,48 @@ class CreditMiningClient(ChannelDownloadClient):
             self.session.lm.rtorrent_handler.download_torrent(
                 None, torrent.infohash, _success_download, priority=1)
 
+    def start_download(self, name):
+        if self.boosting_manager is None:
+            super(CreditMiningClient, self).start_download(name)
+            return
+
+        ln = [(i, t) for i, t in self.boosting_manager.torrents.items() if name in t['name']]
+        if ln:
+            ihash_bin = ln[0][0]
+
+            _torrent = self.boosting_manager.torrents[ihash_bin]
+            _download = _torrent.get('download', None)
+            if _download:
+                handle = _download.handle
+                if handle:
+                    handle.pause()
+
+                download_dir = path.join(self.session.get_state_dir(), "download")
+
+                if not path.exists(download_dir):
+                    try:
+                        os.makedirs(download_dir)
+                    except OSError:
+                        # race condition of creating shared directory may happen
+                        pass
+
+                shutil.copy(path.join(self.bsettings.credit_mining_path, "%s" % ln[0][1]['name']), download_dir)
+
+                self.boosting_manager.stop_download(ihash_bin, True, "Starting new download")
+
+                def _check_done(_name, _ihash_bin):
+                    if _ihash_bin not in self.boosting_manager.torrents.keys():
+                        # already removed
+                        super(CreditMiningClient, self).start_download(_name)
+                    else:
+                        reactor.callLater(5.0, _check_done, _name, _ihash_bin)
+
+                # periodically check if it already removed properly
+                reactor.callLater(10.0, _check_done, name, ihash_bin)
+                return
+
+        super(CreditMiningClient, self).start_download(name)
+
     def add_source(self, strsource):
         assert strsource, "Must not empty"
 
