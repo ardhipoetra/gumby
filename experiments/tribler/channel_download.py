@@ -125,9 +125,8 @@ class ChannelDownloadClient(TriblerDispersyExperimentScriptClient):
         settings = self.session.lm.ltmgr.get_session().get_settings()
         settings['allow_multiple_connections_per_ip'] = True
         settings['ignore_limits_on_local_network'] = False
-        settings['download_rate_limit'] = 250000
-        settings["upload_rate_limit"] = 100000
         self.session.lm.ltmgr.get_session().set_settings(settings)
+        self.set_speed(250000, 100000)
 
         self.torrent_mgr = TorrentManagerCM(self.session)
 
@@ -140,6 +139,7 @@ class ChannelDownloadClient(TriblerDispersyExperimentScriptClient):
         self.scenario_runner.register(self.start_download, 'start_download')
         self.scenario_runner.register(self.stop_download, 'stop_download')
         self.scenario_runner.register(self.setup_seeder, 'setup_seeder')
+        self.scenario_runner.register(self.set_speed, 'set_speed')
 
     def create(self):
         self._logger.error("creating-community")
@@ -149,6 +149,12 @@ class ChannelDownloadClient(TriblerDispersyExperimentScriptClient):
 
         self._logger.error("Community %s (%s) created with member: %s",
                            self.my_channel.get_channel_name(), self.my_channel.get_channel_id(), self.my_channel._master_member)
+
+    def set_speed(self, download, upload):
+        settings = self.session.lm.ltmgr.get_session().get_settings()
+        settings['download_rate_limit'] = int(download)
+        settings["upload_rate_limit"] = int(upload)
+        self.session.lm.ltmgr.get_session().set_settings(settings)
 
     def join(self):
         if not self.join_lc:
@@ -198,11 +204,15 @@ class ChannelDownloadClient(TriblerDispersyExperimentScriptClient):
 
         ds.get_peerlist = lambda: peers
 
+        setting = self.session.lm.ltmgr.get_session().get_settings()
+        dlmax = setting['download_rate_limit']
+        ulmax = setting['upload_rate_limit']
+
         self._logger.error('%s:%s infohash=%s, downsp=%d, upsp=%d, progress=%s, status=%s, peers=%s rat=%s dl=%s up=%s avail=%.8f dsavail=%.8f' %
                           (self._dispersy.lan_address[0], self._dispersy.lan_address[1],
                            ds.get_download().tdef.get_infohash().encode('hex')[:5],
-                           ds.get_current_speed('down')/1000,
-                           ds.get_current_speed('up')/1000,
+                           min(ds.get_current_speed('down'), dlmax + 100000)/1000,
+                           min(ds.get_current_speed('up'), ulmax + 100000)/1000,
                            ds.get_progress(),
                            dlstatus_strings[ds.get_status()],
                            len(peers),
