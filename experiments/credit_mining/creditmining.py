@@ -45,16 +45,6 @@ class CreditMiningClient(ChannelDownloadClient):
         self.scenario_runner.register(self.start_boosting, 'start_boosting')
         self.scenario_runner.register(self.add_source, 'add_source')
         self.scenario_runner.register(self.set_boost_settings, 'set_boost_settings')
-        self.scenario_runner.register(self.set_speed, 'set_speed')
-
-    def set_speed(self, download, upload):
-        settings = self.session.lm.ltmgr.get_session().get_settings()
-        settings['download_rate_limit'] = int(download)
-        settings["upload_rate_limit"] = int(upload)
-        settings["max_rejects"] = 50
-        settings["allowed_fast_set_size"] = 500
-        settings["inactivity_timeout"] = 1200
-        self.session.lm.ltmgr.get_session().set_settings(settings)
 
     def set_boost_settings(self, filename=None):
 
@@ -116,7 +106,12 @@ class CreditMiningClient(ChannelDownloadClient):
 
         settings = self.session.lm.ltmgr.get_session().get_settings()
         settings['user_agent'] = "Miners/%s" % self.my_id
+        settings["max_rejects"] = 50
+        settings["allowed_fast_set_size"] = 500
+        settings["inactivity_timeout"] = 1200
         self.session.lm.ltmgr.get_session().set_settings(settings)
+
+        self.set_speed(250000, 100000)
 
         def receive_infohash(dummy_subject, dummy_change_type, dummy_infohash):
             self.session.notifier.notify(NTFY_TORRENTS, NTFY_INSERT, dummy_infohash)
