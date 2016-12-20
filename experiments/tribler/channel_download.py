@@ -262,7 +262,10 @@ class ChannelDownloadClient(TriblerDispersyExperimentScriptClient):
             elif self.joined_community:
                 self.joined_community._disp_create_torrent_from_torrentdef(tdef, int(time.time()))
 
-        self.setup_seeder(filename, size)
+            self.setup_seeder(filename, size)
+        else:
+            self._logger.debug("Can't publish yet, no channel or community joined")
+            reactor.callLater(10.0, self.publish, filename, size)
 
     def _create_test_torrent(self, filename='', size=0):
         filepath = path.join(self.upload_dir_path, "%s.data" % filename)
@@ -330,7 +333,7 @@ class ChannelDownloadClient(TriblerDispersyExperimentScriptClient):
                           'ChannelTorrents.dispersy_id', 'ChannelTorrents.name', 'Torrent.name',
                           'ChannelTorrents.description', 'ChannelTorrents.time_stamp', 'ChannelTorrents.inserted']
         infohash_bin = None
-        torrent_values = self.joined_community._channelcast_db.getTorrentsFromChannelId(self.joined_community.get_channel_id(), True, CHANTOR_DB, 5)
+        torrent_values = self.joined_community._channelcast_db.getTorrentsFromChannelId(self.joined_community.get_channel_id(), True, CHANTOR_DB)
         if torrent_values:
             log = "Channel id %s : " % self.joined_community.get_channel_id()
             for t in torrent_values:
