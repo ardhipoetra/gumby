@@ -248,6 +248,7 @@ class ChannelDownloadClient(TriblerDispersyExperimentScriptClient):
             dscfg.set_dest_dir(self.upload_dir_path)
             dscfg.set_hops(0)
             dscfg.set_safe_seeding(False)
+            dscfg.dlconfig.set('downloadconfig', 'seeding_mode', 'forever')
 
             self._logger.error("Setup seeder for %s", hexlify(tdef.get_infohash()))
 
@@ -315,6 +316,7 @@ class ChannelDownloadClient(TriblerDispersyExperimentScriptClient):
             dscfg.set_dest_dir(path.join(self.session.get_state_dir(), "download"))
             dscfg.set_hops(0)
             dscfg.set_safe_seeding(False)
+            dscfg.dlconfig.set('downloadconfig', 'seeding_mode', 'forever')
 
             self._logger.error("Start downloading for %s", hexlify(tdef.get_infohash()))
 
