@@ -285,11 +285,13 @@ class ChannelDownloadClient(TriblerDispersyExperimentScriptClient):
         if path.isfile(tpath):
             tpath = path.join(self.upload_dir_path, "%s.torrent" % exp_filename)
 
-            if path.isfile(tpath):
+            if path.isfile(tpath) and path.getsize(path.join(
+                    self.upload_dir_path, "%s.data" % exp_filename)) == int(size):
                 tdef = TorrentDef.load(tpath)
             else:
                 # writing file has not finished yet
                 reactor.callLater(10.0, self.setup_seeder, filename, size)
+                return
         else:
             # file not found. In DAS case, this is because the file in another node
             tdef = self._create_test_torrent(exp_filename, size)
@@ -305,6 +307,8 @@ class ChannelDownloadClient(TriblerDispersyExperimentScriptClient):
 
             download = self.session.start_download_from_tdef(tdef, dscfg)
             download.set_state_callback(self.__ds_active_callback, True)
+        else:
+            reactor.callLater(10.0, self.setup_seeder, filename, size)
 
     def publish(self, filename, size):
         if self.my_channel or self.joined_community:
