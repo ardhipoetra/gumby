@@ -346,7 +346,7 @@ class ChannelDownloadClient(TriblerDispersyExperimentScriptClient):
     def _connect_peer(self, thandle):
         for cd in self.joined_community.dispersy_yield_verified_candidates():
             ip = cd.lan_address[0]
-            for port in xrange(20000, 20000 + self.num_peers):
+            for port in xrange(20000, 20000 + self.num_peers + 10):
                 if thandle:
                     thandle.connect_peer((ip, port), 0)
 
