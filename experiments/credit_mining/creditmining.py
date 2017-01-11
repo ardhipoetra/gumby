@@ -39,6 +39,7 @@ class CreditMiningClient(ChannelDownloadClient):
 
         self.chn_join_lc = None
         self.loaded_torrent = {}
+        self.connect_lc = None
 
     def registerCallbacks(self):
         super(CreditMiningClient, self).registerCallbacks()
@@ -212,10 +213,22 @@ class CreditMiningClient(ChannelDownloadClient):
 
                 ch = self.boosting_manager.get_source_object(self.joined_community.cid)
                 ch.torrent_mgr.load_torrent = self._load_torrent
+                from twisted.internet.task import LoopingCall
+                self.connect_lc = LoopingCall(self._connect_cm)
+                self.connect_lc.start(10.0, now=False)
             else:
                 reactor.callLater(10.0, self.add_source, strsource)
         else:
             self.boosting_manager.add_source(string_to_source(strsource))
+
+    def _connect_cm(self):
+        if not self.boosting_manager:
+            return
+
+        for ihash, torrent in self.boosting_manager.torrents.items():
+            if 'download' in torrent and torrent['download'].handle:
+                self._connect_peer(torrent['download'].handle)
+
 
     def setup_session_config(self):
         config = super(CreditMiningClient, self).setup_session_config()
@@ -229,6 +242,8 @@ class CreditMiningClient(ChannelDownloadClient):
 
     def stop(self, retry=3):
         if self.boosting_manager:
+            if self.connect_lc:
+                self.connect_lc.stop()
             for name in self.dl_lc.keys():
                 if not self.downloaded_torrent[name]:
                     self.dl_lc[name].stop()
