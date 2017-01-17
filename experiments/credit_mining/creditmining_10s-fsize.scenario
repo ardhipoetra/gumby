@@ -1,0 +1,52 @@
+@0:0 set_master_member 3081a7301006072a8648ce3d020106052b81040027038192000403cbbfd2dfb67a7db66c88988df56f93fa6e7f982f9a6a0fa8898492c8b8cae23e10b159ace60b7047012082a5aa4c6e221d7e58107bb550436d57e046c11ab4f51f0ab18fa8f58d0346cc12d1cc2b61fc86fe5ed192309152e11e3f02489e30c7c971dd989e1ce5030ea0fb77d5220a92cceb567cbc94bc39ba246a42e215b55e9315b543ddeff0209e916f77c0d747
+@0:2 start_dispersy {1-101}
+@0:20 start_session
+@0:60 online
+@0:60 reset_dispersy_statistics
+@0:60 annotate start-experiment
+# 1 : creator (seeder)
+# 2-12 : dedicated seeder
+# 13-81 : peers
+# 81 - 85 : flashcrowd all scenario
+@0:60 create {1}
+@0:61 join {2-20}
+@0:62 publish file100mb 100428800 {1}
+@0:63 join {21-40}
+@0:64 join {41-55}
+@0:65 publish file300mb 300428800 {2}
+@0:66 publish file600mb 600428800 {3}
+@0:67 publish file1gb 1000288000 {4}
+@0:68 publish file1.3gb 1300288000 {5}
+@0:69 publish file1.6gb 1600288000 {6}
+@0:70 publish file2gb 2000288000 {7}
+@0:71 publish file2.5gb 2500288000 {8}
+@0:72 publish file3gb 3000288000 {9}
+@0:73 publish file5gb 5000288010 {10}
+@5:105 setup_seeder file100mb 100428800 {11-13}
+@5:106 setup_seeder file300mb 300428800 {14-16}
+@5:107 setup_seeder file600mb 600428800 {17-19}
+@5:108 setup_seeder file1gb 1000288000 {20-22}
+@5:109 setup_seeder file1.3gb 1300288000 {23-25}
+@5:110 setup_seeder file1.6gb 1600288000 {26-28}
+@5:111 setup_seeder file2gb 2000288000 {29-31}
+@5:112 setup_seeder file2.5gb 2500288000 {32-34}
+@5:113 setup_seeder file3gb 3000288000 {35-37}
+@5:114 setup_seeder file5gb 5000288010 {38-40}
+@5:115 join {56-100}
+@5:117 join {101}
+# wave 1
+@10:12 start_download file100mb {41-46}
+@10:12 start_download file300mb {47-52}
+@10:12 start_download file600mb {53-58}
+@10:12 start_download file1gb {59-64}
+@10:12 start_download file1.3gb {65-70}
+@10:12 start_download file1.6gb {71-76}
+@10:12 start_download file2gb {77-82}
+@10:12 start_download file2.5gb {83-88}
+@10:12 start_download file3gb {89-94}
+@10:12 start_download file5gb {95-100}
+@20:0 set_boost_settings boosting.ini.1 {101}
+@20:2 start_boosting {101}
+@20:3 add_source joinedchannel {101}
+@2:58:0 reset_dispersy_statistics
+@2:59:0 stop
