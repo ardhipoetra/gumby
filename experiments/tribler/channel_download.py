@@ -11,6 +11,7 @@ import posix
 from twisted.internet import reactor
 from twisted.internet.task import LoopingCall
 
+from Tribler.Core.simpledefs import NTFY_TORRENTS, NTFY_FINISHED
 from gumby.experiments.TriblerDispersyClient import TriblerDispersyExperimentScriptClient, BASE_DIR
 from gumby.experiments.dispersyclient import main, DispersyExperimentScriptClient
 
@@ -270,6 +271,10 @@ class ChannelDownloadClient(TriblerDispersyExperimentScriptClient):
         if ds.get_progress() == 0.0 and ds.get_status() == 3 and not \
                 self.session.lm.ltmgr.get_session().get_settings()['user_agent'].startswith("Seeder"):
             self._connect_peer(ds.get_download().handle)
+
+        # if status is seeding
+        if ds.get_status() == 4 and not setting['user_agent'].startswith("Seeder"):
+            self.session.notifier.notify(NTFY_TORRENTS, NTFY_FINISHED, ds.get_download().tdef.get_infohash())
 
         return 1.0, True
 
